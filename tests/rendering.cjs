@@ -330,7 +330,13 @@ test("suite playground, exports, and stylesheet controls", async () => {
     const preview = page.frames().find((frame) => frame.parentFrame());
     const source = await page.locator("#source").inputValue();
     const expectedCopy = source;
-    assert.ok((await page.locator("#integration-code").inputValue()).includes('href="https://cdn.jsdelivr.net/gh/byuwur/easy-csv-viewer@main/csv.css"'));
+    const release = await page.frameLocator("#preview-frame").locator(".byVIEWtoolbar").evaluate(() => byCSVviewer.VERSION);
+    assert.ok((await page.frameLocator("#preview-frame").locator(".byVIEWinfo").textContent()).includes(` v${release} `), "Credits must match the runtime release");
+    const cdnBase = "https://cdn.jsdelivr.net/gh/byuwur/easy-csv-viewer@main/";
+    const readme = require("node:fs").readFileSync(path.join(__dirname, "../README.md"), "utf8");
+    for (const extension of ["css", "js"]) assert.ok(readme.includes(`${cdnBase}csv.${extension}`), "README assets must match the CDN starter");
+    assert.equal(await page.locator("#install-note").textContent(), "CDN follows main and requires the updated files to be published there.");
+    assert.ok((await page.locator("#integration-code").inputValue()).includes(`href="${cdnBase}csv.css"`));
     assert.equal(await page.locator('[data-install="cdn"]').getAttribute("aria-pressed"), "true");
     await page.locator('[data-install="local"]').click();
     const starter = await page.locator("#integration-code").inputValue();
@@ -389,7 +395,6 @@ test("suite playground, exports, and stylesheet controls", async () => {
     await exported.locator(".byVIEWcopy").click();
     assert.equal(await exported.evaluate(() => copiedSource), expectedCopy);
     await page.locator('[data-install="cdn"]').click();
-    const cdnBase = "https://cdn.jsdelivr.net/gh/byuwur/easy-csv-viewer@main/";
     const cdnStarter = await page.locator("#integration-code").inputValue();
     assert.equal(cdnStarter.replaceAll(cdnBase, ""), starter, "Only asset paths change between modes");
     assert.ok(cdnStarter.includes('href="' + cdnBase + 'csv.css"'));
