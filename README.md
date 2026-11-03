@@ -1,5 +1,7 @@
 # byuwur/easy-csv-viewer
 
+![easy-csv-viewer preview](prev.jpg)
+
 **CSV, every cell in sight.**
 
 Turn CSV, TSV, or arrays of records into a table with search, sorting, filters, and pagination.
@@ -173,7 +175,7 @@ node --check csv.js
 node --test tests/rendering.cjs
 ```
 
-`BROWSER_CHANNEL=chrome` uses installed Chrome; `CHROMIUM_EXECUTABLE_PATH` selects a Chromium executable. Otherwise, install Playwright Chromium.
+`BROWSER_CHANNEL=chrome` uses installed Chrome; `CHROMIUM_EXECUTABLE_PATH` selects a Chromium executable. Otherwise, install Playwright Chromium. [GitHub Actions](.github/workflows/rendering.yml) runs the same suite.
 
 ## The easy viewers
 
