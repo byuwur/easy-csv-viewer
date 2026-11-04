@@ -42,9 +42,8 @@ test("CSV parsing and standalone browser behavior", async (t) => {
         await byCSVviewer(document.getElementById("viewer"), source, options).ready;
       },
       {
-        source:
-          'Name,Role,Location,Notes\nAndres,Developer,Bogota,"Build small, useful things."\nSam,Designer,London,"Quotes: ""hello"""\nLee,Engineer,Tokyo,"A note that spans\ntwo lines."\nAlex,Maintainer,Oslo,Ready',
-        options: { fontSizeControls: true,  delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: true, columnFilters: true, copyCells: true }
+        source: 'Name,Role,Location,Notes\nAndres,Developer,Bogota,"Build small, useful things."\nSam,Designer,London,"Quotes: ""hello"""\nLee,Engineer,Tokyo,"A note that spans\ntwo lines."\nAlex,Maintainer,Oslo,Ready',
+        options: { fontSizeControls: true, delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: true, columnFilters: true, copyCells: true }
       }
     );
     await page.waitForFunction(() => document.querySelector("tbody tr"));
@@ -125,13 +124,15 @@ test("CSV parsing and standalone browser behavior", async (t) => {
         for (const theme of ["light", "dark"]) {
           await page.evaluate(async (theme) => {
             root.dataset.theme = theme;
-            window.sortInput = Object.freeze([
-              { name: "Zed", score: 10, group: "keep" },
-              { name: "Cara", score: 1, group: "keep" },
-              { name: "amy", score: 2, group: "keep" },
-              { name: "Bob", score: 2, group: "skip" },
-              { name: "AMY", score: 2, group: "keep" }
-            ].map((record) => Object.freeze(record)));
+            window.sortInput = Object.freeze(
+              [
+                { name: "Zed", score: 10, group: "keep" },
+                { name: "Cara", score: 1, group: "keep" },
+                { name: "amy", score: 2, group: "keep" },
+                { name: "Bob", score: 2, group: "skip" },
+                { name: "AMY", score: 2, group: "keep" }
+              ].map((record) => Object.freeze(record))
+            );
             window.sortSnapshot = JSON.stringify(sortInput);
             await byCSVviewer(root, sortInput, { search: true, columnFilters: true, pageSize: 2 }).ready;
           }, theme);
@@ -200,52 +201,78 @@ test("CSV parsing and standalone browser behavior", async (t) => {
         ["", "", "", ""],
         ["Lee", "Engineer", "Tokyo", "https://example.com/" + "segment".repeat(20)]
       ];
-      const measure = () => page.locator(".byCSVtable").evaluate((table) => [...table.querySelectorAll("th, td")].map((cell) => {
-        const rect = cell.getBoundingClientRect();
-        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, padding: getComputedStyle(cell).padding };
-      }));
+      const measure = () =>
+        page.locator(".byCSVtable").evaluate((table) =>
+          [...table.querySelectorAll("th, td")].map((cell) => {
+            const rect = cell.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, padding: getComputedStyle(cell).padding };
+          })
+        );
       try {
         for (const width of [320, 640]) {
           await page.setViewportSize({ width: width + 16, height: 800 });
           for (const theme of ["light", "dark"]) {
             for (const columnFilters of [false, true]) {
-              await page.evaluate(async ({ width, theme, source, columnFilters }) => {
-                root.style.width = `${width}px`;
-                root.style.fontFamily = "Georgia, serif";
-                root.dataset.theme = theme;
-                await byCSVviewer(root, source, { columnFilters, copyCells: false }).ready;
-              }, { width, theme, source, columnFilters });
+              await page.evaluate(
+                async ({ width, theme, source, columnFilters }) => {
+                  root.style.width = `${width}px`;
+                  root.style.fontFamily = "Georgia, serif";
+                  root.dataset.theme = theme;
+                  await byCSVviewer(root, source, { columnFilters, copyCells: false }).ready;
+                },
+                { width, theme, source, columnFilters }
+              );
               const plain = await measure();
               assert.equal(await page.locator(".byCSVscroll").evaluate((scroll) => scroll.scrollWidth > scroll.clientWidth), true);
               assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-              assert.equal(await page.getByRole("button", { name: "Sort by Location", exact: true }).evaluate((button) => {
-                const range = document.createRange();
-                range.selectNode(button.firstChild);
-                return range.getClientRects().length;
-              }), 1);
+              assert.equal(
+                await page.getByRole("button", { name: "Sort by Location", exact: true }).evaluate((button) => {
+                  const range = document.createRange();
+                  range.selectNode(button.firstChild);
+                  return range.getClientRects().length;
+                }),
+                1
+              );
               if (columnFilters) assert.ok(await page.getByRole("searchbox", { name: "Filter Name", exact: true }).evaluate((input) => input.getBoundingClientRect().height < 30));
-              await page.evaluate(async ({ source, columnFilters }) => {
-                await byCSVviewer(root, source, { columnFilters, copyCells: true }).ready;
-              }, { source, columnFilters });
+              await page.evaluate(
+                async ({ source, columnFilters }) => {
+                  await byCSVviewer(root, source, { columnFilters, copyCells: true }).ready;
+                },
+                { source, columnFilters }
+              );
               assert.deepEqual(await measure(), plain, `${width}px ${theme}: copying must not resize cells`);
-              assert.equal(await page.locator("tbody td .byCSVcell").first().evaluate((button) => getComputedStyle(button).fontFamily === getComputedStyle(button.parentElement).fontFamily), true);
+              assert.equal(
+                await page
+                  .locator("tbody td .byCSVcell")
+                  .first()
+                  .evaluate((button) => getComputedStyle(button).fontFamily === getComputedStyle(button.parentElement).fontFamily),
+                true
+              );
               const copy = page.locator("tbody td .byCSVcell").first();
               await copy.click();
               assert.equal(await page.evaluate(() => copies.at(-1)), "Andres");
               assert.equal(await copy.textContent(), "Andres");
               assert.equal(await copy.getAttribute("data-state"), "success");
               assert.deepEqual(await measure(), plain, "Copy confirmation must not move the table");
-              await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new Error("Denied"); }; });
+              await page.evaluate(() => {
+                navigator.clipboard.writeText = async () => {
+                  throw new Error("Denied");
+                };
+              });
               await copy.click();
               assert.equal(await copy.textContent(), "Andres");
               assert.equal(await copy.getAttribute("data-state"), "error");
               assert.deepEqual(await measure(), plain, "Copy errors must not move the table");
-              await page.evaluate(() => { navigator.clipboard.writeText = async (value) => copies.push(value); });
+              await page.evaluate(() => {
+                navigator.clipboard.writeText = async (value) => copies.push(value);
+              });
               const blank = page.locator("tbody tr").nth(2).locator(".byCSVcell").first();
               await blank.click();
               assert.equal(await page.evaluate(() => copies.at(-1)), "");
               assert.equal(await blank.textContent(), "");
-              await page.locator(".byCSVscroll").evaluate((scroll) => { scroll.scrollLeft = 0; });
+              await page.locator(".byCSVscroll").evaluate((scroll) => {
+                scroll.scrollLeft = 0;
+              });
               assert.deepEqual(await measure(), plain, "Empty cells keep their size after copying");
             }
           }
@@ -330,7 +357,10 @@ test("suite playground, exports, and stylesheet controls", async () => {
     const preview = page.frames().find((frame) => frame.parentFrame());
     const source = await page.locator("#source").inputValue();
     const expectedCopy = source;
-    const release = await page.frameLocator("#preview-frame").locator(".byVIEWtoolbar").evaluate(() => byCSVviewer.VERSION);
+    const release = await page
+      .frameLocator("#preview-frame")
+      .locator(".byVIEWtoolbar")
+      .evaluate(() => byCSVviewer.VERSION);
     assert.ok((await page.frameLocator("#preview-frame").locator(".byVIEWinfo").textContent()).includes(` v${release} `), "Credits must match the runtime release");
     const cdnBase = "https://cdn.jsdelivr.net/gh/byuwur/easy-csv-viewer@latest/";
     const readme = require("node:fs").readFileSync(path.join(__dirname, "../README.md"), "utf8");
@@ -342,13 +372,17 @@ test("suite playground, exports, and stylesheet controls", async () => {
     const starter = await page.locator("#integration-code").inputValue();
     await page.evaluate(() => {
       window.successfulClipboardWrite = navigator.clipboard.writeText;
-      navigator.clipboard.writeText = async () => { throw new Error("Denied"); };
+      navigator.clipboard.writeText = async () => {
+        throw new Error("Denied");
+      };
     });
     await page.locator("#copy-html").click();
     await page.waitForFunction(() => document.querySelector("#copy-html span").textContent === "Failed");
     assert.equal(await page.locator("#integration-code").evaluate((element) => document.activeElement === element && element.selectionEnd === element.value.length), true);
     assert.match(await page.locator("#copy-html").getAttribute("title"), /Ctrl\+C/);
-    await page.evaluate(() => { navigator.clipboard.writeText = window.successfulClipboardWrite; });
+    await page.evaluate(() => {
+      navigator.clipboard.writeText = window.successfulClipboardWrite;
+    });
 
     assert.ok(starter.includes('href="csv.css"'));
     assert.ok(starter.includes('data-theme="light"'));
@@ -493,54 +527,102 @@ test("family customization, navigation and monospace controls", async () => {
     assert.equal(await page.locator("#controlsCompact").isChecked(), true);
     assert.equal(JSON.parse(await page.locator("#options-json").inputValue()).controlsCompact, true);
     assert.equal(await frame.locator(".byCSVdocument").evaluate((root) => root.classList.contains("byVIEWcompact")), true);
-    assert.deepEqual(await frame.evaluate(async (source) => {
-      const host = document.createElement("div");
-      document.body.append(host);
-      const states = [];
-      let controller;
-      try {
-        for (const options of [undefined, { controlsCompact: false }, { controlsCompact: true }, undefined]) {
-          controller = byCSVviewer(host, source, options);
+    assert.deepEqual(
+      await frame.evaluate(async (source) => {
+        const host = document.createElement("div");
+        document.body.append(host);
+        const states = [];
+        let controller;
+        try {
+          for (const options of [undefined, { controlsCompact: false }, { controlsCompact: true }, undefined]) {
+            controller = byCSVviewer(host, source, options);
+            await controller?.ready;
+            states.push(host.classList.contains("byVIEWcompact"));
+          }
+          controller = byCSVviewer(host, source, { themeToggle: false, fontSizeControls: false, copyButton: false });
           await controller?.ready;
-          states.push(host.classList.contains("byVIEWcompact"));
+          states.push(host.querySelectorAll(".byVIEWinfo").length === 1 && !host.querySelector(".byVIEWcontrols"));
+          return states;
+        } finally {
+          controller?.destroy?.();
+          host.remove();
         }
-        controller = byCSVviewer(host, source, { themeToggle: false, fontSizeControls: false, copyButton: false });
-        await controller?.ready;
-        states.push(host.querySelectorAll(".byVIEWinfo").length === 1 && !host.querySelector(".byVIEWcontrols"));
-        return states;
-      } finally {
-        controller?.destroy?.();
-        host.remove();
-      }
-    }, "name\nSample"), [true, false, true, true, true], "Compact defaults, opt-out, rerenders, and disabled controls agree");
-    assert.deepEqual(await page.locator(".form-switch .form-check-input").first().evaluate((element) => {
-      const style = getComputedStyle(element);
-      return { width: style.width, height: style.height };
-    }), { width: "44px", height: "24px" });
-    assert.equal(await page.locator(".form-switch .form-check-input").evaluateAll((inputs) => inputs.every((input) => {
-      const toggle = input.getBoundingClientRect();
-      const row = input.closest(".form-switch").getBoundingClientRect();
-      return Math.abs(toggle.right - row.right) < 1 && Math.abs(toggle.top + toggle.height / 2 - row.top - row.height / 2) < 1;
-    })), true, "Every switch lines up at the right edge and center of its row");
+      }, "name\nSample"),
+      [true, false, true, true, true],
+      "Compact defaults, opt-out, rerenders, and disabled controls agree"
+    );
+    assert.deepEqual(
+      await page
+        .locator(".form-switch .form-check-input")
+        .first()
+        .evaluate((element) => {
+          const style = getComputedStyle(element);
+          return { width: style.width, height: style.height };
+        }),
+      { width: "44px", height: "24px" }
+    );
+    assert.equal(
+      await page.locator(".form-switch .form-check-input").evaluateAll((inputs) =>
+        inputs.every((input) => {
+          const toggle = input.getBoundingClientRect();
+          const row = input.closest(".form-switch").getBoundingClientRect();
+          return Math.abs(toggle.right - row.right) < 1 && Math.abs(toggle.top + toggle.height / 2 - row.top - row.height / 2) < 1;
+        })
+      ),
+      true,
+      "Every switch lines up at the right edge and center of its row"
+    );
     for (const width of [768, 1280]) {
       await page.setViewportSize({ width, height: 720 });
-      assert.equal(await page.locator("#controlsSize").evaluate((size) => {
-        const a = size.querySelector(".btn-group").getBoundingClientRect();
-        const b = document.querySelector("#controlsPosition .btn-group").getBoundingClientRect();
-        return Math.abs(a.top - b.top) < 1 && Math.abs(a.width - b.width) < 1 && a.right < b.left;
-      }), true, "Size and position controls share one evenly divided row");
+      assert.equal(
+        await page.locator("#controlsSize").evaluate((size) => {
+          const a = size.querySelector(".btn-group").getBoundingClientRect();
+          const b = document.querySelector("#controlsPosition .btn-group").getBoundingClientRect();
+          return Math.abs(a.top - b.top) < 1 && Math.abs(a.width - b.width) < 1 && a.right < b.left;
+        }),
+        true,
+        "Size and position controls share one evenly divided row"
+      );
     }
-    assert.deepEqual(await page.locator(".accordion-button").allTextContents().then((labels) => labels.map((label) => label.trim()).slice(0, 3)), ["Preview appearance", "Viewer controls", "Rendering"]);
+    assert.deepEqual(
+      await page
+        .locator(".accordion-button")
+        .allTextContents()
+        .then((labels) => labels.map((label) => label.trim()).slice(0, 3)),
+      ["Preview appearance", "Viewer controls", "Rendering"]
+    );
     assert.deepEqual(await page.locator("#options-json").evaluate((editor) => Object.keys(JSON.parse(editor.value)).slice(0, 18)), [
-      "theme", "palette", "fontFamily", "fontSize", "lineHeight", "controlsFont", "backgroundColor", "containerBackgroundColor", "textColor", "customThemeCSS",
-      "toolbar", "credits", "themeToggle", "fontSizeControls", "copyButton", "controlsCompact", "controlsSize", "controlsPosition"
+      "theme",
+      "palette",
+      "fontFamily",
+      "fontSize",
+      "lineHeight",
+      "controlsFont",
+      "backgroundColor",
+      "containerBackgroundColor",
+      "textColor",
+      "customThemeCSS",
+      "toolbar",
+      "credits",
+      "themeToggle",
+      "fontSizeControls",
+      "copyButton",
+      "controlsCompact",
+      "controlsSize",
+      "controlsPosition"
     ]);
     assert.equal(await page.locator(".intro h1 + p").textContent(), "Plain JavaScript. No dependencies. Open source. Free. Forever.");
     assert.ok((await page.locator("header .brand-mark").textContent()).trim());
 
     assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--bs-body-bg").trim()), "#141618");
     assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(20, 22, 24)");
-    assert.equal(await page.locator('.source-editor').first().evaluate((element) => getComputedStyle(element).backgroundColor), "rgb(20, 22, 24)");
+    assert.equal(
+      await page
+        .locator(".source-editor")
+        .first()
+        .evaluate((element) => getComputedStyle(element).backgroundColor),
+      "rgb(20, 22, 24)"
+    );
     assert.equal(await page.locator('meta[name="theme-color"]').getAttribute("content"), "#141618");
     await page.locator("#site-theme").evaluate((button) => button.click());
     assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--bs-body-bg").trim()), "#fff");
@@ -554,10 +636,7 @@ test("family customization, navigation and monospace controls", async () => {
     assert.equal(await page.locator('[aria-label="Viewer suite"]').getByRole("link", { name: "CSV", exact: true }).getAttribute("aria-current"), "page");
     assert.equal(await page.locator(".site-footer .fa-heart").count(), 1);
     assert.equal(await page.locator("header .fa-github").count(), 1);
-    assert.equal(
-      await page.evaluate(() => Boolean(document.querySelector('[aria-label="Viewer suite"]').compareDocumentPosition(document.querySelector("footer")) & Node.DOCUMENT_POSITION_FOLLOWING)),
-      true
-    );
+    assert.equal(await page.evaluate(() => Boolean(document.querySelector('[aria-label="Viewer suite"]').compareDocumentPosition(document.querySelector("footer")) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
     await page.locator(".preview-appearance").evaluate((element) => {
       element.open = true;
     });
@@ -651,7 +730,11 @@ test("family customization, navigation and monospace controls", async () => {
     const fileSource = await sourceEditor.inputValue();
     await page.evaluate(() => {
       window.originalFileText = File.prototype.text;
-      File.prototype.text = function () { return new Promise((resolve) => { window.finishFileRead = resolve; }); };
+      File.prototype.text = function () {
+        return new Promise((resolve) => {
+          window.finishFileRead = resolve;
+        });
+      };
     });
     try {
       for (const action of ["edit", "restore", "sample"]) {
@@ -666,14 +749,17 @@ test("family customization, navigation and monospace controls", async () => {
         assert.equal(await sourceEditor.inputValue(), expected, "Late file reads preserve the newer source");
       }
     } finally {
-      await page.evaluate(() => { File.prototype.text = window.originalFileText; delete window.finishFileRead; delete window.originalFileText; });
+      await page.evaluate(() => {
+        File.prototype.text = window.originalFileText;
+        delete window.finishFileRead;
+        delete window.originalFileText;
+      });
     }
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
   }
 });
-
 
 test("container themes are scoped, independent, and compatible with legacy links", async () => {
   const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || undefined, executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined });
@@ -684,13 +770,16 @@ test("container themes are scoped, independent, and compatible with legacy links
     await page.setContent('<div id="outside" class="dark">Host</div><div id="first" data-theme="dark"></div><div id="second" class="light"></div><div id="third"></div>');
     await page.addStyleTag({ path: path.join(__dirname, "../csv.css") });
     await page.addScriptTag({ path: path.join(__dirname, "../csv.js") });
-    await page.evaluate(async (args) => {
-      window.renderTheme = async (element) => {
-        const controller = window.byCSVviewer(element, ...args);
-        if (controller?.ready) await controller.ready;
-      };
-      for (const id of ["first", "second", "third"]) await renderTheme(document.getElementById(id));
-    }, ["name\nLocal theme"]);
+    await page.evaluate(
+      async (args) => {
+        window.renderTheme = async (element) => {
+          const controller = window.byCSVviewer(element, ...args);
+          if (controller?.ready) await controller.ready;
+        };
+        for (const id of ["first", "second", "third"]) await renderTheme(document.getElementById(id));
+      },
+      ["name\nLocal theme"]
+    );
     const color = (id) => page.locator("#" + id).evaluate((element) => getComputedStyle(element).backgroundColor);
     assert.equal(await color("first"), "rgb(39, 40, 34)");
     assert.equal(await color("second"), "rgb(250, 250, 245)");
@@ -700,7 +789,13 @@ test("container themes are scoped, independent, and compatible with legacy links
     assert.equal(await page.locator("#first").getAttribute("data-theme"), "light");
     assert.equal(await color("second"), "rgb(250, 250, 245)");
     await page.locator("#second .byVIEWthemeToggle").click();
-    assert.equal(await page.locator("#second").getAttribute("class").then((classes) => classes.split(/\s+/).includes("dark")), true);
+    assert.equal(
+      await page
+        .locator("#second")
+        .getAttribute("class")
+        .then((classes) => classes.split(/\s+/).includes("dark")),
+      true
+    );
     assert.equal(await page.locator("#second").getAttribute("data-theme"), null);
     assert.equal(await color("second"), "rgb(39, 40, 34)");
     await page.evaluate(async () => {
@@ -760,14 +855,17 @@ test("named palettes retain mode, isolate custom CSS, and meet High Contrast tar
     await page.setContent('<div id="outside">Host</div><div id="viewer"></div><div id="other" data-theme="dark"></div>');
     await page.addStyleTag({ path: path.join(__dirname, "../csv.css") });
     await page.addScriptTag({ path: path.join(__dirname, "../csv.js") });
-    await page.evaluate(async (args) => {
-      window.renderPalette = async (id) => {
-        const controller = window.byCSVviewer(document.getElementById(id), ...args);
-        if (controller?.ready) await controller.ready;
-      };
-      await renderPalette("viewer");
-      await renderPalette("other");
-    }, ["name,value\nTheme,1"]);
+    await page.evaluate(
+      async (args) => {
+        window.renderPalette = async (id) => {
+          const controller = window.byCSVviewer(document.getElementById(id), ...args);
+          if (controller?.ready) await controller.ready;
+        };
+        await renderPalette("viewer");
+        await renderPalette("other");
+      },
+      ["name,value\nTheme,1"]
+    );
     const root = page.locator("#viewer");
     const background = () => root.evaluate((element) => getComputedStyle(element).backgroundColor);
     assert.equal(await background(), "rgb(250, 250, 245)", "Default remains Monokai Light");
@@ -800,9 +898,15 @@ test("named palettes retain mode, isolate custom CSS, and meet High Contrast tar
         const style = getComputedStyle(element);
         const luminance = (color) => {
           const channels = color.startsWith("#")
-            ? color.slice(1).match(/../g).map((part) => parseInt(part, 16))
-            : color.match(/[\d.]+/g).slice(0, 3).map(Number);
-          const values = channels.map((channel) => channel / 255).map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+            ? color
+                .slice(1)
+                .match(/../g)
+                .map((part) => parseInt(part, 16))
+            : color
+                .match(/[\d.]+/g)
+                .slice(0, 3)
+                .map(Number);
+          const values = channels.map((channel) => channel / 255).map((value) => (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
           return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
         };
         const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
@@ -827,19 +931,27 @@ test("named palettes retain mode, isolate custom CSS, and meet High Contrast tar
       element.dataset.theme = "github";
     });
     assert.equal(await background(), "rgb(13, 17, 23)", "Dark wins when both classes exist");
-    await root.evaluate((element) => { element.dataset.theme = "light"; });
+    await root.evaluate((element) => {
+      element.dataset.theme = "light";
+    });
     assert.equal(await background(), "rgb(250, 250, 245)", "Legacy mode aliases override classes");
     await page.addStyleTag({ content: '.byCSVdocument.light[data-theme="ocean"] { --by-view-bg: #f3f8fc; } .byCSVdocument.dark[data-theme="ocean"] { --by-view-bg: #102a43; }' });
-    await root.evaluate((element) => { element.dataset.theme = "ocean"; element.classList.remove("light", "dark"); });
+    await root.evaluate((element) => {
+      element.dataset.theme = "ocean";
+      element.classList.remove("light", "dark");
+    });
     await page.route("https://legacy.test/**", (route) => route.fulfill({ body: "", contentType: "text/css" }));
-    await page.evaluate(() => new Promise((resolve) => {
-      const link = document.createElement("link");
-      link.id = "byVIEWtheme";
-      link.rel = "stylesheet";
-      link.href = "https://legacy.test/csv.dark.css?cache=1#theme";
-      link.onload = resolve;
-      document.head.appendChild(link);
-    }));
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const link = document.createElement("link");
+          link.id = "byVIEWtheme";
+          link.rel = "stylesheet";
+          link.href = "https://legacy.test/csv.dark.css?cache=1#theme";
+          link.onload = resolve;
+          document.head.appendChild(link);
+        })
+    );
     await page.evaluate(() => renderPalette("viewer"));
     assert.equal(await background(), "rgb(250, 250, 245)", "An unclassified custom palette starts in Light");
     await root.locator(".byVIEWthemeToggle").click();
@@ -848,7 +960,6 @@ test("named palettes retain mode, isolate custom CSS, and meet High Contrast tar
     assert.equal(await page.locator("#byVIEWtheme").getAttribute("href"), "https://legacy.test/csv.dark.css?cache=1#theme");
     assert.equal(await page.locator("#other").evaluate((element) => getComputedStyle(element).backgroundColor), "rgb(39, 40, 34)");
     assert.equal(await page.locator("#outside").evaluate((element) => getComputedStyle(element).getPropertyValue("--by-view-muted")), "");
-
   } finally {
     await browser.close();
   }
@@ -860,7 +971,16 @@ test("playground palettes and editable two-mode custom themes stay synchronized"
     const page = await browser.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (text) => { window.lastCopy = text; } } }));
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (text) => {
+            window.lastCopy = text;
+          }
+        }
+      })
+    );
     await page.route("**/*", async (route) => {
       const url = new URL(route.request().url());
       if (url.href === "https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.6/css/bootstrap.min.css") return route.fulfill({ body: await getBootstrapCSS(), contentType: "text/css" });
@@ -882,12 +1002,13 @@ test("playground palettes and editable two-mode custom themes stay synchronized"
     const defaults = await editor.inputValue();
     assert.ok(defaults.includes('.byCSVdocument.light[data-theme="custom"]'));
     await palette.selectOption("github");
-    const setMode = (mode) => page.evaluate((mode) => {
-      const input = document.querySelector('#preview-theme, input[name="viewerTheme"][value="' + mode + '"], input[name="previewTheme"][value="' + mode + '"]');
-      if (input.tagName === "SELECT") input.value = mode;
-      else input.checked = true;
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }, mode);
+    const setMode = (mode) =>
+      page.evaluate((mode) => {
+        const input = document.querySelector('#preview-theme, input[name="viewerTheme"][value="' + mode + '"], input[name="previewTheme"][value="' + mode + '"]');
+        if (input.tagName === "SELECT") input.value = mode;
+        else input.checked = true;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }, mode);
     await setMode("dark");
     assert.equal(await background(), "rgb(13, 17, 23)");
     await root.locator(".byVIEWthemeToggle").click();
@@ -901,7 +1022,9 @@ test("playground palettes and editable two-mode custom themes stay synchronized"
       await setMode("dark");
       assert.equal(await background(), name === "solarized" ? "rgb(0, 43, 54)" : "rgb(0, 0, 0)");
     }
-    await page.locator(".preview-appearance").evaluate((element) => { element.open = true; });
+    await page.locator(".preview-appearance").evaluate((element) => {
+      element.open = true;
+    });
     const custom = '.byCSVdocument.light[data-theme="custom"] { --by-view-bg: #f3f8fc; }\n.byCSVdocument.dark[data-theme="custom"] { --by-view-bg: #102a43; }';
     await editor.fill(custom);
     await page.waitForFunction(() => document.getElementById("preview-palette").value === "custom");
@@ -942,12 +1065,15 @@ test("viewer defaults, optional tools, and copy feedback", async () => {
     await page.setContent('<div id="viewer"></div>');
     await page.addStyleTag({ path: path.join(__dirname, "../csv.css") });
     await page.addScriptTag({ path: path.join(__dirname, "../csv.js") });
-    await page.evaluate((args) => {
-      window.renderUI = async (options = {}) => {
-        const result = byCSVviewer(document.getElementById("viewer"), ...args, options);
-        await result?.ready;
-      };
-    }, ["name,value\nneedle,2\nother,1"]);
+    await page.evaluate(
+      (args) => {
+        window.renderUI = async (options = {}) => {
+          const result = byCSVviewer(document.getElementById("viewer"), ...args, options);
+          await result?.ready;
+        };
+      },
+      ["name,value\nneedle,2\nother,1"]
+    );
     await page.evaluate(() => renderUI());
     assert.equal(await page.locator(".byVIEWcontrols button").count(), 5);
     assert.equal(await page.locator(".byVIEWfontSizes").count(), 1);
@@ -962,25 +1088,32 @@ test("viewer defaults, optional tools, and copy feedback", async () => {
       for (const controlsSize of ["small", "regular", "large"]) {
         for (const font of ["ui-monospace, monospace", "Georgia, serif"]) {
           for (const mode of ["light", "dark"]) {
-            const errors = await page.evaluate(async ({ scale, controlsSize, font, mode }) => {
-              document.documentElement.style.fontSize = `${scale}rem`;
-              const host = document.getElementById("viewer");
-              host.dataset.theme = mode;
-              host.style.setProperty("--by-view-controls-font", font);
-              await renderUI({ controlsSize });
-              const button = host.querySelector(".byVIEWthemeToggle");
-              const rect = button.getBoundingClientRect();
-              const style = getComputedStyle(button), thumb = getComputedStyle(button, "::after");
-              const innerWidth = rect.width - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
-              const innerHeight = rect.height - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth);
-              const position = (value, extent) => value.endsWith("%") ? parseFloat(value) * extent / 100 : parseFloat(value);
-              const centerX = rect.left + parseFloat(style.borderLeftWidth) + position(thumb.left, innerWidth);
-              const centerY = rect.top + parseFloat(style.borderTopWidth) + position(thumb.top, innerHeight);
-              const icons = [...button.querySelectorAll("svg")];
-              const icon = icons[mode === "dark" ? 1 : 0].getBoundingClientRect();
-              return [Math.abs(centerX - icon.x - icon.width / 2), Math.abs(centerY - icon.y - icon.height / 2), Math.abs(centerY - rect.y - rect.height / 2)];
-            }, { scale, controlsSize, font, mode });
-            assert.ok(errors.every((error) => error < 0.06), `${scale} ${controlsSize} ${font} ${mode}: ${errors}`);
+            const errors = await page.evaluate(
+              async ({ scale, controlsSize, font, mode }) => {
+                document.documentElement.style.fontSize = `${scale}rem`;
+                const host = document.getElementById("viewer");
+                host.dataset.theme = mode;
+                host.style.setProperty("--by-view-controls-font", font);
+                await renderUI({ controlsSize });
+                const button = host.querySelector(".byVIEWthemeToggle");
+                const rect = button.getBoundingClientRect();
+                const style = getComputedStyle(button),
+                  thumb = getComputedStyle(button, "::after");
+                const innerWidth = rect.width - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+                const innerHeight = rect.height - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth);
+                const position = (value, extent) => (value.endsWith("%") ? (parseFloat(value) * extent) / 100 : parseFloat(value));
+                const centerX = rect.left + parseFloat(style.borderLeftWidth) + position(thumb.left, innerWidth);
+                const centerY = rect.top + parseFloat(style.borderTopWidth) + position(thumb.top, innerHeight);
+                const icons = [...button.querySelectorAll("svg")];
+                const icon = icons[mode === "dark" ? 1 : 0].getBoundingClientRect();
+                return [Math.abs(centerX - icon.x - icon.width / 2), Math.abs(centerY - icon.y - icon.height / 2), Math.abs(centerY - rect.y - rect.height / 2)];
+              },
+              { scale, controlsSize, font, mode }
+            );
+            assert.ok(
+              errors.every((error) => error < 0.06),
+              `${scale} ${controlsSize} ${font} ${mode}: ${errors}`
+            );
           }
         }
       }
@@ -991,7 +1124,9 @@ test("viewer defaults, optional tools, and copy feedback", async () => {
       await renderUI();
     });
     for (const mode of ["light", "dark"]) {
-      await page.locator("#viewer").evaluate((element, mode) => { element.dataset.theme = mode; }, mode);
+      await page.locator("#viewer").evaluate((element, mode) => {
+        element.dataset.theme = mode;
+      }, mode);
       await page.evaluate(() => renderUI({ toolbar: false, controlsPosition: "bottom", sorting: false, pagination: false, collapsible: false, details: false, lineNumbers: false, loadMore: false }));
       assert.equal(await page.locator("#viewer :is(button, input, select, summary):visible").count(), 0);
       assert.equal(await page.locator(".byVIEWtoolbar").count(), 0);
@@ -1009,20 +1144,31 @@ test("viewer defaults, optional tools, and copy feedback", async () => {
     assert.equal(await page.locator(".byVIEWcontrols button").count(), 5);
     await page.evaluate(() => renderUI({ credits: false, themeToggle: false, fontSizeControls: false, copyButton: false }));
     assert.equal(await page.locator(".byVIEWtoolbar").count(), 0);
-    await page.evaluate((options) => renderUI({ fontSizeControls: true, ...options }), {"search":true,"columnFilters":true,"copyCells":true,"columnsButton":true,"statusBar":true});
+    await page.evaluate((options) => renderUI({ fontSizeControls: true, ...options }), { search: true, columnFilters: true, copyCells: true, columnsButton: true, statusBar: true });
     assert.equal(await page.locator(".byVIEWfontSize").count(), 3);
     assert.equal(await page.locator(".byVIEWpanel > .byVIEWstatus:visible").count(), 1);
     assert.ok(await page.locator(".byVIEWpanel > .byVIEWstatus").evaluate((status) => parseFloat(getComputedStyle(status).borderBottomWidth) > 0));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.evaluate(() => {
-      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("Denied"); } } });
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async () => {
+            throw new Error("Denied");
+          }
+        }
+      });
     });
     await page.locator(".byVIEWcopy").click();
     await page.mouse.move(0, 0);
     await page.locator(".byVIEWcopy").evaluate((element) => element.blur());
     assert.equal(await page.locator(".byVIEWcopy").getAttribute("data-state"), "error");
     assert.equal(await page.locator(".byVIEWcopy").textContent(), "Failed");
-    await page.evaluate(() => { navigator.clipboard.writeText = async (value) => { window.copiedSource = value; }; });
+    await page.evaluate(() => {
+      navigator.clipboard.writeText = async (value) => {
+        window.copiedSource = value;
+      };
+    });
     await page.locator(".byVIEWcopy").click();
     assert.equal(await page.locator(".byVIEWcopy").getAttribute("data-state"), "success");
     assert.match(await page.evaluate(() => copiedSource), /needle/);
