@@ -7,10 +7,15 @@
  * MIT License (see LICENSE).
  */
 (function (global) {
-  /* --- SETUP --- */
+  /* --- INITIALIZATION --- */
   if (global.byCSVviewer?.initialized) return;
+
+  /* --- METADATA --- */
+  byCSVviewer.VERSION = "1"; // 2026-11-04
+
+  /* --- STATE --- */
   const instances = new WeakMap();
-  /* --- DOM HELPERS --- */
+  /* --- HELPERS --- */
   const node = (tag, className = "", text) => {
     const element = document.createElement(tag);
     element.className = className;
@@ -57,117 +62,6 @@
   /** Yield at a chunk boundary so input events and replacement renders can run. */
   const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
   const positive = (value, fallback, maximum) => (Number.isInteger(value) && value > 0 ? Math.min(value, maximum) : fallback);
-  /* --- PARSING --- */
-  const csvOptions = (options) => {
-    const result = { delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: false, columnFilters: false, copyCells: false, ...options };
-    if (typeof result.delimiter !== "string" || result.delimiter.length !== 1 || /["\r\n\uFEFF]/.test(result.delimiter)) throw new TypeError("delimiter must be one character other than a quote or line break.");
-    result.pageSize = positive(result.pageSize, 50, 1000);
-    return result;
-  };
-  const cellText = (value) => (value === null || value === undefined ? "" : String(value));
-  const scalar = (value) => value === null || value === undefined || ["string", "number", "boolean", "bigint"].includes(typeof value);
-
-  // One parser serves synchronous parsing and cooperative browser rendering.
-  /** Yield cooperative parsing checkpoints and return columns/rows when done; quoted fields may span lines. */
-  function* readCSV(input, options) {
-    let columns = [],
-      rows = [];
-    const pushRow = (row) => {
-      if (!columns.length) {
-        columns = options.headers ? row.map(cellText) : row.map((_, index) => `Column ${index + 1}`);
-        if (columns.length > 500) throw new RangeError("CSV exceeds 500 columns.");
-        if (options.headers) return;
-      }
-      if (row.length !== columns.length) throw new SyntaxError(`Row ${rows.length + (options.headers ? 2 : 1)} has ${row.length} fields; expected ${columns.length}.`);
-      if (rows.length >= 100000) throw new RangeError("CSV exceeds 100,000 rows.");
-      rows.push(row);
-    };
-    if (Array.isArray(input)) {
-      if (input.length > 100000) throw new RangeError("CSV exceeds 100,000 rows.");
-      if (!input.length) return { columns, rows };
-      if (Array.isArray(input[0])) {
-        for (let i = 0; i < input.length; i++) {
-          if (!Array.isArray(input[i]) || !input[i].every(scalar)) throw new TypeError("Expected arrays of scalar values.");
-          pushRow(Array.from(input[i]));
-          if (i % 1000 === 0) yield;
-        }
-      } else {
-        const keys = new Set();
-        for (let i = 0; i < input.length; i++) {
-          const record = input[i];
-          if (!record || typeof record !== "object" || Array.isArray(record)) throw new TypeError("Expected an array of records.");
-          Object.keys(record).forEach((key) => keys.add(key));
-          if (keys.size > 500) throw new RangeError("CSV exceeds 500 columns.");
-          if (i % 1000 === 0) yield;
-        }
-        columns = [...keys];
-        for (let i = 0; i < input.length; i++) {
-          const row = columns.map((key) => (Object.hasOwn(input[i], key) ? input[i][key] : undefined));
-          if (!row.every(scalar)) throw new TypeError("Record values must be scalar (string, number, boolean, bigint, null, or undefined).");
-          rows.push(row);
-          if (i % 1000 === 0) yield;
-        }
-      }
-      return { columns, rows };
-    }
-    if (typeof input !== "string") throw new TypeError("CSV input must be text or an array.");
-    if (input.length > 10000000) throw new RangeError("CSV exceeds 10 million characters.");
-    const text = input.replace(/^\uFEFF/, "");
-    let row = [],
-      field = "",
-      quoted = false,
-      closed = false,
-      touched = false,
-      nextYield = 0;
-    const finishRow = () => {
-      row.push(field);
-      if (!options.skipEmptyLines || touched || row.length > 1 || field !== "") pushRow(row);
-      row = [];
-      field = "";
-      closed = false;
-      touched = false;
-    };
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      if (quoted) {
-        if (char === '"') {
-          if (text[i + 1] === '"') {
-            field += '"';
-            i++;
-          } else {
-            quoted = false;
-            closed = true;
-          }
-        } else field += char;
-      } else if (char === options.delimiter) {
-        row.push(field);
-        field = "";
-        closed = false;
-        touched = true;
-        if (row.length >= 500) throw new RangeError("CSV exceeds 500 columns.");
-      } else if (char === "\n" || char === "\r") {
-        finishRow();
-        if (char === "\r" && text[i + 1] === "\n") i++;
-      } else if (char === '"' && !field && !closed) {
-        quoted = true;
-        touched = true;
-      } else {
-        // A closed quoted field accepts only separators; trailing whitespace is still invalid CSV.
-        if (closed || char === '"') throw new SyntaxError(`Unexpected character after field at offset ${i}.`);
-        field += char;
-        touched = true;
-      }
-      if (i >= nextYield) {
-        nextYield = i + 32768;
-        yield;
-      }
-    }
-    if (quoted) throw new SyntaxError("Unclosed quoted field.");
-    if (touched || row.length || field || closed) finishRow();
-    return { columns, rows };
-  }
-
-
   /* --- CONTROLS --- */
   // Mirrored across the family so each viewer can run without a shared runtime.
   /**
@@ -327,6 +221,116 @@
       }
     });
   };
+
+  /* --- PARSING --- */
+  const csvOptions = (options) => {
+    const result = { delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: false, columnFilters: false, copyCells: false, ...options };
+    if (typeof result.delimiter !== "string" || result.delimiter.length !== 1 || /["\r\n\uFEFF]/.test(result.delimiter)) throw new TypeError("delimiter must be one character other than a quote or line break.");
+    result.pageSize = positive(result.pageSize, 50, 1000);
+    return result;
+  };
+  const cellText = (value) => (value === null || value === undefined ? "" : String(value));
+  const scalar = (value) => value === null || value === undefined || ["string", "number", "boolean", "bigint"].includes(typeof value);
+
+  // One parser serves synchronous parsing and cooperative browser rendering.
+  /** Yield cooperative parsing checkpoints and return columns/rows when done; quoted fields may span lines. */
+  function* readCSV(input, options) {
+    let columns = [],
+      rows = [];
+    const pushRow = (row) => {
+      if (!columns.length) {
+        columns = options.headers ? row.map(cellText) : row.map((_, index) => `Column ${index + 1}`);
+        if (columns.length > 500) throw new RangeError("CSV exceeds 500 columns.");
+        if (options.headers) return;
+      }
+      if (row.length !== columns.length) throw new SyntaxError(`Row ${rows.length + (options.headers ? 2 : 1)} has ${row.length} fields; expected ${columns.length}.`);
+      if (rows.length >= 100000) throw new RangeError("CSV exceeds 100,000 rows.");
+      rows.push(row);
+    };
+    if (Array.isArray(input)) {
+      if (input.length > 100000) throw new RangeError("CSV exceeds 100,000 rows.");
+      if (!input.length) return { columns, rows };
+      if (Array.isArray(input[0])) {
+        for (let i = 0; i < input.length; i++) {
+          if (!Array.isArray(input[i]) || !input[i].every(scalar)) throw new TypeError("Expected arrays of scalar values.");
+          pushRow(Array.from(input[i]));
+          if (i % 1000 === 0) yield;
+        }
+      } else {
+        const keys = new Set();
+        for (let i = 0; i < input.length; i++) {
+          const record = input[i];
+          if (!record || typeof record !== "object" || Array.isArray(record)) throw new TypeError("Expected an array of records.");
+          Object.keys(record).forEach((key) => keys.add(key));
+          if (keys.size > 500) throw new RangeError("CSV exceeds 500 columns.");
+          if (i % 1000 === 0) yield;
+        }
+        columns = [...keys];
+        for (let i = 0; i < input.length; i++) {
+          const row = columns.map((key) => (Object.hasOwn(input[i], key) ? input[i][key] : undefined));
+          if (!row.every(scalar)) throw new TypeError("Record values must be scalar (string, number, boolean, bigint, null, or undefined).");
+          rows.push(row);
+          if (i % 1000 === 0) yield;
+        }
+      }
+      return { columns, rows };
+    }
+    if (typeof input !== "string") throw new TypeError("CSV input must be text or an array.");
+    if (input.length > 10000000) throw new RangeError("CSV exceeds 10 million characters.");
+    const text = input.replace(/^\uFEFF/, "");
+    let row = [],
+      field = "",
+      quoted = false,
+      closed = false,
+      touched = false,
+      nextYield = 0;
+    const finishRow = () => {
+      row.push(field);
+      if (!options.skipEmptyLines || touched || row.length > 1 || field !== "") pushRow(row);
+      row = [];
+      field = "";
+      closed = false;
+      touched = false;
+    };
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (quoted) {
+        if (char === '"') {
+          if (text[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            quoted = false;
+            closed = true;
+          }
+        } else field += char;
+      } else if (char === options.delimiter) {
+        row.push(field);
+        field = "";
+        closed = false;
+        touched = true;
+        if (row.length >= 500) throw new RangeError("CSV exceeds 500 columns.");
+      } else if (char === "\n" || char === "\r") {
+        finishRow();
+        if (char === "\r" && text[i + 1] === "\n") i++;
+      } else if (char === '"' && !field && !closed) {
+        quoted = true;
+        touched = true;
+      } else {
+        // A closed quoted field accepts only separators; trailing whitespace is still invalid CSV.
+        if (closed || char === '"') throw new SyntaxError(`Unexpected character after field at offset ${i}.`);
+        field += char;
+        touched = true;
+      }
+      if (i >= nextYield) {
+        nextYield = i + 32768;
+        yield;
+      }
+    }
+    if (quoted) throw new SyntaxError("Unclosed quoted field.");
+    if (touched || row.length || field || closed) finishRow();
+    return { columns, rows };
+  }
 
   /* --- LIFECYCLE --- */
   // One instance owns the container; replacement disposes its pending work first.
@@ -570,9 +574,6 @@
     return { ready: state.ready, destroy: state.destroy };
   }
 
-  global.byCSVviewer = byCSVviewer;
-  byCSVviewer.VERSION = "1";
-  byCSVviewer.initialized = true;
   byCSVviewer.parse = (input, options = {}) => {
     const parser = readCSV(input, csvOptions(options));
     let step;
@@ -581,4 +582,7 @@
     } while (!step.done);
     return step.value;
   };
+  /* --- EXPORT --- */
+  global.byCSVviewer = byCSVviewer;
+  byCSVviewer.initialized = true;
 })(typeof window !== "undefined" ? window : this);
