@@ -10,6 +10,7 @@
   /* --- SETUP --- */
   if (global.byCSVviewer?.initialized) return;
   const instances = new WeakMap();
+  /* --- DOM HELPERS --- */
   const node = (tag, className = "", text) => {
     const element = document.createElement(tag);
     element.className = className;
@@ -53,9 +54,122 @@
     control.addEventListener("focusout", reset);
     return control;
   };
+  /** Yield at a chunk boundary so input events and replacement renders can run. */
   const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
   const positive = (value, fallback, maximum) => (Number.isInteger(value) && value > 0 ? Math.min(value, maximum) : fallback);
+  /* --- PARSING --- */
+  const csvOptions = (options) => {
+    const result = { delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: false, columnFilters: false, copyCells: false, ...options };
+    if (typeof result.delimiter !== "string" || result.delimiter.length !== 1 || /["\r\n\uFEFF]/.test(result.delimiter)) throw new TypeError("delimiter must be one character other than a quote or line break.");
+    result.pageSize = positive(result.pageSize, 50, 1000);
+    return result;
+  };
+  const cellText = (value) => (value === null || value === undefined ? "" : String(value));
+  const scalar = (value) => value === null || value === undefined || ["string", "number", "boolean", "bigint"].includes(typeof value);
+
+  // One parser serves synchronous parsing and cooperative browser rendering.
+  /** Yield cooperative parsing checkpoints and return columns/rows when done; quoted fields may span lines. */
+  function* readCSV(input, options) {
+    let columns = [],
+      rows = [];
+    const pushRow = (row) => {
+      if (!columns.length) {
+        columns = options.headers ? row.map(cellText) : row.map((_, index) => `Column ${index + 1}`);
+        if (columns.length > 500) throw new RangeError("CSV exceeds 500 columns.");
+        if (options.headers) return;
+      }
+      if (row.length !== columns.length) throw new SyntaxError(`Row ${rows.length + (options.headers ? 2 : 1)} has ${row.length} fields; expected ${columns.length}.`);
+      if (rows.length >= 100000) throw new RangeError("CSV exceeds 100,000 rows.");
+      rows.push(row);
+    };
+    if (Array.isArray(input)) {
+      if (input.length > 100000) throw new RangeError("CSV exceeds 100,000 rows.");
+      if (!input.length) return { columns, rows };
+      if (Array.isArray(input[0])) {
+        for (let i = 0; i < input.length; i++) {
+          if (!Array.isArray(input[i]) || !input[i].every(scalar)) throw new TypeError("Expected arrays of scalar values.");
+          pushRow(Array.from(input[i]));
+          if (i % 1000 === 0) yield;
+        }
+      } else {
+        const keys = new Set();
+        for (let i = 0; i < input.length; i++) {
+          const record = input[i];
+          if (!record || typeof record !== "object" || Array.isArray(record)) throw new TypeError("Expected an array of records.");
+          Object.keys(record).forEach((key) => keys.add(key));
+          if (keys.size > 500) throw new RangeError("CSV exceeds 500 columns.");
+          if (i % 1000 === 0) yield;
+        }
+        columns = [...keys];
+        for (let i = 0; i < input.length; i++) {
+          const row = columns.map((key) => (Object.hasOwn(input[i], key) ? input[i][key] : undefined));
+          if (!row.every(scalar)) throw new TypeError("Record values must be scalar (string, number, boolean, bigint, null, or undefined).");
+          rows.push(row);
+          if (i % 1000 === 0) yield;
+        }
+      }
+      return { columns, rows };
+    }
+    if (typeof input !== "string") throw new TypeError("CSV input must be text or an array.");
+    if (input.length > 10000000) throw new RangeError("CSV exceeds 10 million characters.");
+    const text = input.replace(/^\uFEFF/, "");
+    let row = [],
+      field = "",
+      quoted = false,
+      closed = false,
+      touched = false,
+      nextYield = 0;
+    const finishRow = () => {
+      row.push(field);
+      if (!options.skipEmptyLines || touched || row.length > 1 || field !== "") pushRow(row);
+      row = [];
+      field = "";
+      closed = false;
+      touched = false;
+    };
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (quoted) {
+        if (char === '"') {
+          if (text[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            quoted = false;
+            closed = true;
+          }
+        } else field += char;
+      } else if (char === options.delimiter) {
+        row.push(field);
+        field = "";
+        closed = false;
+        touched = true;
+        if (row.length >= 500) throw new RangeError("CSV exceeds 500 columns.");
+      } else if (char === "\n" || char === "\r") {
+        finishRow();
+        if (char === "\r" && text[i + 1] === "\n") i++;
+      } else if (char === '"' && !field && !closed) {
+        quoted = true;
+        touched = true;
+      } else {
+        // A closed quoted field accepts only separators; trailing whitespace is still invalid CSV.
+        if (closed || char === '"') throw new SyntaxError(`Unexpected character after field at offset ${i}.`);
+        field += char;
+        touched = true;
+      }
+      if (i >= nextYield) {
+        nextYield = i + 32768;
+        yield;
+      }
+    }
+    if (quoted) throw new SyntaxError("Unclosed quoted field.");
+    if (touched || row.length || field || closed) finishRow();
+    return { columns, rows };
+  }
+
+
   /* --- CONTROLS --- */
+  // Mirrored across the family so each viewer can run without a shared runtime.
   /**
    * Adds container light/dark controls, retaining legacy stylesheet links as a fallback.
    * @param {HTMLElement} element Viewer container and theme owner.
@@ -66,9 +180,7 @@
   const appendThemeToggle = (element, controls, filename) => {
     const escapedFilename = filename.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const themePattern = new RegExp(`^([^?#]*/)?${escapedFilename}\\.(light|dark)\\.css([?#].*)?$`, "i");
-    const stylesheet = [document.getElementById("byVIEWtheme"), ...document.querySelectorAll('link[rel~="stylesheet"]')].find(
-      (link) => link && themePattern.test(link.getAttribute("href") || "")
-    );
+    const stylesheet = [document.getElementById("byVIEWtheme"), ...document.querySelectorAll('link[rel~="stylesheet"]')].find((link) => link && themePattern.test(link.getAttribute("href") || ""));
     // Explicit container state takes precedence over a shared legacy stylesheet.
     const localTheme = (target) => {
       if (["light", "dark"].includes(target.dataset.theme)) return target.dataset.theme;
@@ -81,11 +193,11 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "byVIEWthemeToggle";
-    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.8A9 9 0 0 1 11.2 3 9 9 0 1 0 21 12.8Z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+    button.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.8A9 9 0 0 1 11.2 3 9 9 0 1 0 21 12.8Z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
     const sync = () => {
       const next = getTheme() === "dark" ? "light" : "dark";
-      const toggles =
-        !localTheme(element) && legacyTheme() ? [button, ...document.querySelectorAll(".byCSVdocument > .byVIEWtoolbar > .byVIEWcontrols > .byVIEWthemeToggle")] : [button];
+      const toggles = !localTheme(element) && legacyTheme() ? [button, ...document.querySelectorAll(".byCSVdocument > .byVIEWtoolbar > .byVIEWcontrols > .byVIEWthemeToggle")] : [button];
       for (const toggle of toggles) {
         // A legacy link must not change the controls of independently themed viewers.
         if (toggle !== button && localTheme(toggle.closest(".byCSVdocument"))) continue;
@@ -218,6 +330,7 @@
 
   /* --- LIFECYCLE --- */
   // One instance owns the container; replacement disposes its pending work first.
+  /** Replace the previous owner and return its cancellable state. Only the current owner may clear the host. */
   const mount = (element, options, getText) => {
     if (!(element instanceof HTMLElement)) throw new TypeError("byCSVviewer: element must be an HTMLElement.");
     instances.get(element)?.destroy();
@@ -275,117 +388,8 @@
     return state;
   };
 
-  /* --- CONTENT --- */
-  const csvOptions = (options) => {
-    const result = { delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: false, columnFilters: false, copyCells: false, ...options };
-    if (typeof result.delimiter !== "string" || result.delimiter.length !== 1 || /["\r\n\uFEFF]/.test(result.delimiter))
-      throw new TypeError("delimiter must be one character other than a quote or line break.");
-    result.pageSize = positive(result.pageSize, 50, 1000);
-    return result;
-  };
-  const cellText = (value) => (value === null || value === undefined ? "" : String(value));
-  const scalar = (value) => value === null || value === undefined || ["string", "number", "boolean", "bigint"].includes(typeof value);
-
-  // One parser serves synchronous parsing and cooperative browser rendering.
-  function* readCSV(input, options) {
-    let columns = [],
-      rows = [];
-    const pushRow = (row) => {
-      if (!columns.length) {
-        columns = options.headers ? row.map(cellText) : row.map((_, index) => `Column ${index + 1}`);
-        if (columns.length > 500) throw new RangeError("CSV exceeds 500 columns.");
-        if (options.headers) return;
-      }
-      if (row.length !== columns.length) throw new SyntaxError(`Row ${rows.length + (options.headers ? 2 : 1)} has ${row.length} fields; expected ${columns.length}.`);
-      if (rows.length >= 100000) throw new RangeError("CSV exceeds 100,000 rows.");
-      rows.push(row);
-    };
-    if (Array.isArray(input)) {
-      if (input.length > 100000) throw new RangeError("CSV exceeds 100,000 rows.");
-      if (!input.length) return { columns, rows };
-      if (Array.isArray(input[0])) {
-        for (let i = 0; i < input.length; i++) {
-          if (!Array.isArray(input[i]) || !input[i].every(scalar)) throw new TypeError("Expected arrays of scalar values.");
-          pushRow(Array.from(input[i]));
-          if (i % 1000 === 0) yield;
-        }
-      } else {
-        const keys = new Set();
-        for (let i = 0; i < input.length; i++) {
-          const record = input[i];
-          if (!record || typeof record !== "object" || Array.isArray(record)) throw new TypeError("Expected an array of records.");
-          Object.keys(record).forEach((key) => keys.add(key));
-          if (keys.size > 500) throw new RangeError("CSV exceeds 500 columns.");
-          if (i % 1000 === 0) yield;
-        }
-        columns = [...keys];
-        for (let i = 0; i < input.length; i++) {
-          const row = columns.map((key) => (Object.hasOwn(input[i], key) ? input[i][key] : undefined));
-          if (!row.every(scalar)) throw new TypeError("Record values must be scalar (string, number, boolean, bigint, null, or undefined).");
-          rows.push(row);
-          if (i % 1000 === 0) yield;
-        }
-      }
-      return { columns, rows };
-    }
-    if (typeof input !== "string") throw new TypeError("CSV input must be text or an array.");
-    if (input.length > 10000000) throw new RangeError("CSV exceeds 10 million characters.");
-    const text = input.replace(/^\uFEFF/, "");
-    let row = [],
-      field = "",
-      quoted = false,
-      closed = false,
-      touched = false,
-      nextYield = 0;
-    const finishRow = () => {
-      row.push(field);
-      if (!options.skipEmptyLines || touched || row.length > 1 || field !== "") pushRow(row);
-      row = [];
-      field = "";
-      closed = false;
-      touched = false;
-    };
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      if (quoted) {
-        if (char === '"') {
-          if (text[i + 1] === '"') {
-            field += '"';
-            i++;
-          } else {
-            quoted = false;
-            closed = true;
-          }
-        } else field += char;
-      } else if (char === options.delimiter) {
-        row.push(field);
-        field = "";
-        closed = false;
-        touched = true;
-        if (row.length >= 500) throw new RangeError("CSV exceeds 500 columns.");
-      } else if (char === "\n" || char === "\r") {
-        finishRow();
-        if (char === "\r" && text[i + 1] === "\n") i++;
-      } else if (char === '"' && !field && !closed) {
-        quoted = true;
-        touched = true;
-      } else {
-        if (closed || char === '"') throw new SyntaxError(`Unexpected character after field at offset ${i}.`);
-        field += char;
-        touched = true;
-      }
-      if (i >= nextYield) {
-        nextYield = i + 32768;
-        yield;
-      }
-    }
-    if (quoted) throw new SyntaxError("Unclosed quoted field.");
-    if (touched || row.length || field || closed) finishRow();
-    return { columns, rows };
-  }
-
-  /** Render CSV/TSV text or scalar records. ready resolves false on a displayed data error or cancellation. */
   /* --- PUBLIC API --- */
+  /** Render CSV/TSV text or scalar records. ready resolves false on a displayed data error or cancellation. */
   function byCSVviewer(element, input, options = {}) {
     options = csvOptions(options);
     if (input === undefined) input = element?.textContent ?? "";
@@ -460,10 +464,12 @@
           renderPage();
         });
         const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+        /* --- RENDERING --- */
+        /** Replace the visible page; retaining the header preserves native column-filter focus while typing. */
         const renderPage = (rebuildHeader = true) => {
           if (!state.active) return;
           const count = options.pagination === false ? 1 : Math.max(1, Math.ceil(indices.length / options.pageSize));
-          const focusedColumn = table.contains(document.activeElement) ? document.activeElement.dataset.column ?? null : null;
+          const focusedColumn = table.contains(document.activeElement) ? (document.activeElement.dataset.column ?? null) : null;
           page = Math.max(0, Math.min(page, count - 1));
           const head = node("thead"),
             header = node("tr");
@@ -474,18 +480,19 @@
             const th = node("th");
             th.scope = "col";
             if (options.sorting !== false) th.setAttribute("aria-sort", sortColumn === index ? (direction === 1 ? "ascending" : "descending") : "none");
-            if (options.sorting !== false) button(th, name || `Column ${index + 1}`, `Sort by ${name || `column ${index + 1}`}`, () => {
-              if (sortColumn !== index) {
-                sortColumn = index;
-                direction = 1;
-              } else if (direction === 1) {
-                direction = -1;
-              } else {
-                sortColumn = -1;
-                direction = 1;
-              }
-              update();
-            }).dataset.column = String(index);
+            if (options.sorting !== false)
+              button(th, name || `Column ${index + 1}`, `Sort by ${name || `column ${index + 1}`}`, () => {
+                if (sortColumn !== index) {
+                  sortColumn = index;
+                  direction = 1;
+                } else if (direction === 1) {
+                  direction = -1;
+                } else {
+                  sortColumn = -1;
+                  direction = 1;
+                }
+                update();
+              }).dataset.column = String(index);
             else th.textContent = name || `Column ${index + 1}`;
             header.appendChild(th);
             if (options.columnFilters !== false) {
@@ -521,25 +528,23 @@
           if (focusedColumn !== null && rebuildHeader) table.querySelector(`button[data-column="${focusedColumn}"]`)?.focus({ preventScroll: true });
           pager.hidden = options.pagination === false || count <= 1;
           status.hidden = options.statusBar === false && indices.length > 0 && visible.some(Boolean);
-          status.textContent = !visible.some(Boolean)
-            ? "All columns are hidden."
-            : indices.length
-              ? `${indices.length.toLocaleString()} of ${data.rows.length.toLocaleString()} rows`
-              : "No matching rows.";
+          status.textContent = !visible.some(Boolean) ? "All columns are hidden." : indices.length ? `${indices.length.toLocaleString()} of ${data.rows.length.toLocaleString()} rows` : "No matching rows.";
           pageLabel.textContent = `Page ${page + 1} of ${count}`;
           previous.disabled = page === 0;
           next.disabled = page + 1 >= count;
           element.setAttribute("aria-busy", "false");
         };
+        /** Build a filtered/sorted index without changing source rows; superseded passes cannot publish results. */
         const update = async (rebuildHeader = true) => {
+          // Filter/sort row indices instead of mutating the parsed data or its input order.
+          // A newer query must supersede this pass before it publishes its results.
           const version = ++generation;
           element.setAttribute("aria-busy", "true");
           const query = search.value.toLowerCase();
           const found = [];
           for (let i = 0; i < data.rows.length; i++) {
             const row = data.rows[i];
-            if ((!query || row.some((value) => cellText(value).toLowerCase().includes(query))) && filters.every((filter, col) => !filter || cellText(row[col]).toLowerCase().includes(filter)))
-              found.push(i);
+            if ((!query || row.some((value) => cellText(value).toLowerCase().includes(query))) && filters.every((filter, col) => !filter || cellText(row[col]).toLowerCase().includes(filter))) found.push(i);
             if (i % 2000 === 0) {
               await pause();
               if (!state.active || version !== generation) return;

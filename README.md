@@ -44,28 +44,28 @@ Use `{ delimiter: "\t" }` for TSV, or pass `[{ name: "Andres", score: 10 }]`. Wi
 
 ## Options
 
-| Option | Default | Behavior |
-| --- | --- | --- |
-| `delimiter` | `","` | One character, excluding quote, BOM, CR, and LF. No autodetection. |
-| `headers` | `true` | First text/array row supplies names. False generates `Column 1`, etc. Record input always uses its union of own keys. |
-| `skipEmptyLines` | `true` | Skip physically empty lines. Quoted empty cells and delimiter-only rows remain. |
-| `pageSize` | `50` | Rows per page, integer 1–1000; invalid values use 50. |
-| `search` | `false` | Global case-insensitive substring search, including hidden columns. |
-| `columnFilters` | `false` | Per-column substring filters; combined with search using AND. Hidden filters remain active. |
-| `visibleColumns` | all | Array of zero-based indices or column names. Duplicate names match every column with that name; an empty array hides all columns. |
-| `copyCells` | `false` | Cells become keyboard-accessible copy buttons, keeping the same text and spacing. |
-| `toolbar` | `true` | Show the viewer header; secondary tools are configured separately. |
-| `credits` | `true` | Show attribution in the header. |
-| `statusBar` | `true` | Show counts and metadata. Loading, errors, and empty results remain visible. |
-| `columnsButton` | `false` | Show the column chooser. |
-| `sorting` | `true` | Cycle ascending, descending, then input order; arrows show its direction. |
-| `pagination` | `true` | Paginate large tables. The pager appears only with multiple pages; false shows every row. |
-| `themeToggle` | `true` | Show the theme toggle. |
-| `fontSizeControls` | `true` | Show text-size controls. |
-| `copyButton` | `true` | Copy original text, or CSV serialized from record/row input, including hidden/filtered rows. |
-| `controlsSize` | `"regular"` | `"small"`, `"regular"`, or `"large"`; invalid values use `"regular"`. |
-| `controlsCompact` | `true` | Keep credits beside controls; `false` stacks them. Wraps as needed. |
-| `controlsPosition` | `"top"` | Sticky `"top"` or `"bottom"` toolbar; invalid values use `"top"`. |
+| Option             | Default     | Behavior                                                                                                                          |
+| ------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `delimiter`        | `","`       | One character, excluding quote, BOM, CR, and LF. No autodetection.                                                                |
+| `headers`          | `true`      | First text/array row supplies names. False generates `Column 1`, etc. Record input always uses its union of own keys.             |
+| `skipEmptyLines`   | `true`      | Skip physically empty lines. Quoted empty cells and delimiter-only rows remain.                                                   |
+| `pageSize`         | `50`        | Rows per page, integer 1–1000; invalid values use 50.                                                                             |
+| `search`           | `false`     | Global case-insensitive substring search, including hidden columns.                                                               |
+| `columnFilters`    | `false`     | Per-column substring filters; combined with search using AND. Hidden filters remain active.                                       |
+| `visibleColumns`   | all         | Array of zero-based indices or column names. Duplicate names match every column with that name; an empty array hides all columns. |
+| `copyCells`        | `false`     | Cells become keyboard-accessible copy buttons, keeping the same text and spacing.                                                 |
+| `toolbar`          | `true`      | Show the viewer header; secondary tools are configured separately.                                                                |
+| `credits`          | `true`      | Show attribution in the header.                                                                                                   |
+| `statusBar`        | `true`      | Show counts and metadata. Loading, errors, and empty results remain visible.                                                      |
+| `columnsButton`    | `false`     | Show the column chooser.                                                                                                          |
+| `sorting`          | `true`      | Cycle ascending, descending, then input order; arrows show its direction.                                                         |
+| `pagination`       | `true`      | Paginate large tables. The pager appears only with multiple pages; false shows every row.                                         |
+| `themeToggle`      | `true`      | Show the theme toggle.                                                                                                            |
+| `fontSizeControls` | `true`      | Show text-size controls.                                                                                                          |
+| `copyButton`       | `true`      | Copy original text, or CSV serialized from record/row input, including hidden/filtered rows.                                      |
+| `controlsSize`     | `"regular"` | `"small"`, `"regular"`, or `"large"`; invalid values use `"regular"`.                                                             |
+| `controlsCompact`  | `true`      | Keep credits beside controls; `false` stacks them. Wraps as needed.                                                               |
+| `controlsPosition` | `"top"`     | Sticky `"top"` or `"bottom"` toolbar; invalid values use `"top"`.                                                                 |
 
 ## API and data contract
 
@@ -81,13 +81,21 @@ Column headers cycle through ascending, descending, and reset to input order. So
 
 Cell copy preserves the exact value, including empty strings. Copy requires clipboard permission in a secure context.
 
+`ready` describes the initial render only; it does not track later filtering, sorting, or page changes.
+
+```javascript
+const viewer = byCSVviewer(target, csv, { search: true });
+const rendered = await viewer.ready; // false on data errors or cancellation.
+viewer.destroy(); // Call when the host panel is removed.
+```
+
 ## Appearance and limits
 
 Style `.byCSVdocument` with `--by-view-bg`, `--by-view-text`, `--by-view-muted`, `--by-view-border`, `--by-view-accent`, and `--by-view-alt`. Set typography on the target or its class.
 
 Wide tables scroll horizontally instead of squeezing columns. Explicit line breaks are preserved; cell copy feedback leaves values in place.
 
-Limits: 10 million input characters, 100,000 data rows, 500 columns, and 1,000 mounted rows per page. Browser parsing/filtering yield; only one page is mounted. `.parse()` and native sorting are synchronous; large cells or records can still block.
+Limits: 10 million text-input characters, 100,000 data rows, and 500 columns. Pagination mounts one page of up to 1,000 rows; `pagination: false` mounts every matching row. Browser parsing/filtering yield. `.parse()` and native sorting are synchronous; large cells or records can still block.
 
 Delimiter guessing, type inference, formulas, nested records, and spreadsheet editing are unsupported. Formula-like text is displayed and copied verbatim, never evaluated.
 
@@ -95,7 +103,7 @@ Requires a modern browser with ES2022 (`Object.hasOwn`), async functions, WeakMa
 
 `--by-view-content-font` and `--by-view-line-height` set source/tree typography.
 
-The default header shows Theme, text-size controls, and Copy. Secondary tools are opt-in. Use `toolbar: false` to hide the header, or switch individual controls off as needed.
+Use `toolbar: false` to hide the header, or disable `credits`, `themeToggle`, `fontSizeControls`, and `copyButton` individually. Content actions such as search and format-specific buttons use their own options.
 
 Controls use monospace by default; override `--by-view-controls-font` to change it.
 
@@ -103,12 +111,12 @@ Controls use monospace by default; override `--by-view-controls-font` to change 
 
 `csv.css` includes all palettes in Light and Dark. Monokai is the default.
 
-| Palette | `data-theme` | What it looks like |
-| --- | --- | --- |
-| Monokai (default) | `monokai` | Warm light and dark colors. |
-| GitHub | `github` | Familiar neutral surfaces and syntax colors. |
-| Solarized | `solarized` | Warm light or deep blue-green dark surfaces. |
-| High Contrast | `high-contrast` | Black/white surfaces, strong text, borders, and focus indicators. |
+| Palette           | `data-theme`    | What it looks like                                                |
+| ----------------- | --------------- | ----------------------------------------------------------------- |
+| Monokai (default) | `monokai`       | Warm light and dark colors.                                       |
+| GitHub            | `github`        | Familiar neutral surfaces and syntax colors.                      |
+| Solarized         | `solarized`     | Warm light or deep blue-green dark surfaces.                      |
+| High Contrast     | `high-contrast` | Black/white surfaces, strong text, borders, and focus indicators. |
 
 Use a mode class and a palette name together:
 
@@ -128,7 +136,7 @@ High Contrast text colors target at least [7:1 contrast](https://www.w3.org/WAI/
 
 ### Make it yours
 
-**Custom theme CSS** starts with the selected palette's complete Light/Dark defaults, including controls and format-specific colors. Switching presets keeps your custom draft until Reset. On your page, use `data-theme="custom"` with `class="light"` or `class="dark"`.
+The playground's **Custom theme CSS** field edits both modes of the selected palette. Export those rules to your own stylesheet and use `data-theme="custom"` with `class="light"` or `class="dark"`. Custom drafts stay in the playground; the renderer does not store them.
 
 Define a named palette after the viewer stylesheet. Unspecified colors inherit Monokai:
 
@@ -179,9 +187,11 @@ node --test tests/rendering.cjs
 
 ## The easy viewers
 
-Need a viewer for another format? Explore the family:
+Need another format, or a Markdown editor? Explore the family:
 
 [Markdown](https://github.com/byuwur/easy-md-viewer) · [JSON](https://github.com/byuwur/easy-json-viewer) · [CSV & TSV](https://github.com/byuwur/easy-csv-viewer) · [Logs](https://github.com/byuwur/easy-log-viewer) · [Diff](https://github.com/byuwur/easy-diff-viewer) · [XML](https://github.com/byuwur/easy-xml-viewer) · [YAML](https://github.com/byuwur/easy-yaml-viewer) · [Source code](https://github.com/byuwur/easy-code-viewer)
+
+[Write Markdown with easy-md-editor](https://github.com/byuwur/easy-md-editor).
 
 ## License
 
