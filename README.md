@@ -61,6 +61,9 @@ Use `{ delimiter: "\t" }` for TSV, or pass `[{ name: "Andres", score: 10 }]`. Wi
 | `columnsButton`    | `false`     | Show the column chooser.                                                                                                          |
 | `sorting`          | `true`      | Cycle ascending, descending, then input order; arrows show its direction.                                                         |
 | `pagination`       | `true`      | Paginate large tables. The pager appears only with multiple pages; false shows every row.                                         |
+| `theme`            | Container   | Initial `"light"` or `"dark"` mode class.                                                                                         |
+| `palette`          | Container   | Initial `data-theme` palette, including custom CSS names.                                                                         |
+| `fontSize`         | Container   | Number in rem or a CSS size such as `"1.25em"` or `"20px"`; bounded to `0.5rem`–`3rem`.                                           |
 | `themeToggle`      | `true`      | Show the theme toggle.                                                                                                            |
 | `fontSizeControls` | `true`      | Show text-size controls.                                                                                                          |
 | `copyButton`       | `true`      | Copy original text, or CSV serialized from record/row input, including hidden/filtered rows.                                      |
@@ -109,6 +112,18 @@ Use `toolbar: false` to hide the header, or disable `credits`, `themeToggle`, `f
 Controls use monospace by default; override `--by-view-controls-font` to change it.
 
 ## Themes
+
+Configure appearance in the options object or on the container:
+
+```javascript
+byCSVviewer(target, source, {
+  theme: "dark",
+  palette: "github",
+  fontSize: 1.125
+});
+```
+
+`theme` sets the mode class; `palette` sets `data-theme`. `fontSize` numbers use rem (`1` = the root text size); CSS sizes such as `"1.25em"`, `"1.25rem"`, and `"20px"` are also accepted. All sizes stay between `0.5rem` and `3rem`. Explicit options override markup; omitted or `null` values retain the container's settings. A named palette preserves its existing mode, including the `data-theme="light"` / `"dark"` aliases. Invalid appearance values throw `RangeError` before replacing the current document. Text-size Reset returns to the configured size, including after re-rendering.
 
 Initial content appears immediately. Animations affect controls and deliberate show/hide actions; rows, tokens, and typing are not animated. Disclosure size/exit transitions progressively enhance browsers that support them.
 
