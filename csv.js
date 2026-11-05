@@ -374,15 +374,17 @@
   const mount = (element, options, getText) => {
     if (!(element instanceof HTMLElement)) throw new TypeError("byCSVviewer: element must be an HTMLElement.");
     applyAppearance(element, options);
+    const painted = element.classList.contains("byVIEWready");
     instances.get(element)?.destroy();
     const state = { active: true };
     state.destroy = () => {
       if (!state.active) return;
       state.active = false;
+      cancelAnimationFrame(state.motionFrame);
       if (instances.get(element) === state) {
         instances.delete(element);
         element.replaceChildren();
-        element.classList.remove("byCSVdocument", "byVIEWcompact", "byVIEWbottom", "byVIEWmotion");
+        element.classList.remove("byCSVdocument", "byVIEWcompact", "byVIEWbottom", "byVIEWmotion", "byVIEWappear", "byVIEWready");
         element.removeAttribute("aria-busy");
       }
     };
@@ -390,6 +392,16 @@
     element.replaceChildren();
     element.classList.add("byCSVdocument");
     element.classList.toggle("byVIEWmotion", options.animations !== false);
+    element.classList.toggle("byVIEWappear", options.animations !== false && options.appearAnimation === true);
+    if (painted) element.classList.add("byVIEWready");
+    else {
+      // Enable background transitions after the first paint without forcing layout.
+      state.motionFrame = requestAnimationFrame(() => {
+        state.motionFrame = requestAnimationFrame(() => {
+          if (state.active) element.classList.add("byVIEWready");
+        });
+      });
+    }
     element.classList.toggle("byVIEWplain", options.displayContainer === false);
     element.classList.toggle("byVIEWcompact", options.controlsCompact !== false);
     element.classList.toggle("byVIEWbottom", options.controlsPosition === "bottom");
