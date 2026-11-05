@@ -28,7 +28,7 @@
     <meta name="twitter:description" content="Browse CSV and TSV tables with search, column filters, sorting, and pagination. A free, dependency-free JavaScript table viewer by BONYUR." />
     <meta name="twitter:image" content="https://byuwur.github.io/easy-csv-viewer/prev.jpg" />
     <meta name="twitter:image:alt" content="easy-csv-viewer by BONYUR: CSV &amp; TSV playground, options, source editor, and live preview." />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/css/shards.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/css/shards.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/css/pickr.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/css/fontawesome.min.css" />
@@ -36,8 +36,8 @@
     <script src="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/js/popper.min.js" defer=""></script>
     <script src="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/js/bootstrap.min.js" defer=""></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/spa.js@v20.7/css/animate.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/easy-code-viewer@v1.5/code.css" />
-    <script src="https://cdn.jsdelivr.net/gh/byuwur/easy-code-viewer@v1.5/code.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/byuwur/easy-code-viewer@v1.5/code.min.css" />
+    <script src="https://cdn.jsdelivr.net/gh/byuwur/easy-code-viewer@v1.5/code.min.js" defer></script>
   </head>
 
   <body class="byVIEWmotion">
@@ -1132,6 +1132,7 @@ Alex,Maintainer,Oslo,Ready</textarea
         const installButtons = [...document.querySelectorAll("[data-install]")];
         const updateIntegration = (mode = "cdn") => {
           const base = mode === "cdn" ? "https://cdn.jsdelivr.net/gh/byuwur/easy-csv-viewer@latest/" : "";
+          const min = mode === "cdn" ? ".min" : "";
           const endScript = "</" + "script>";
           // Explicit lines preserve export indentation when the page is formatted.
           const html = [
@@ -1141,8 +1142,8 @@ Alex,Maintainer,Oslo,Ready</textarea
             '    <meta charset="utf-8">',
             '    <meta name="viewport" content="width=device-width, initial-scale=1">',
             "    <title>easy-csv-viewer</title>",
-            `    <link rel="stylesheet" href="${base}csv.css">`,
-            `    <script src="${base}csv.js" defer>${endScript}`,
+            `    <link rel="stylesheet" href="${base}csv${min}.css">`,
+            `    <script src="${base}csv${min}.js" defer>${endScript}`,
             "  </head>",
             "  <body>",
             '    <div id="viewer" data-theme="light"></div>',
@@ -1425,7 +1426,11 @@ Alex,Maintainer,Oslo,Ready</textarea
           const loadPalette = () => {
             clearTimeout(themeTimer);
             if (!target()) return;
-            if (!["monokai", "github", "solarized", "high-contrast", "custom"].includes(palette.value) && !themesWarned && frame.contentWindow.getComputedStyle(frame.contentDocument.documentElement).getPropertyValue("--by-csv-themes-loaded").trim() !== "1") {
+            if (
+              !["monokai", "github", "solarized", "high-contrast", "custom"].includes(palette.value) &&
+              !themesWarned &&
+              frame.contentWindow.getComputedStyle(frame.contentDocument.documentElement).getPropertyValue("--by-csv-themes-loaded").trim() !== "1"
+            ) {
               themesWarned = true;
               console.warn(`easy-csv-viewer: Import csv.themes.css after csv.css to use "${palette.value}".`);
             }
