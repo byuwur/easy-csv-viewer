@@ -54,6 +54,7 @@ Use `{ delimiter: "\t" }` for TSV, or pass `[{ name: "Andres", score: 10 }]`. Wi
 | `columnFilters`    | `false`     | Per-column substring filters; combined with search using AND. Hidden filters remain active.                                       |
 | `visibleColumns`   | all         | Array of zero-based indices or column names. Duplicate names match every column with that name; an empty array hides all columns. |
 | `copyCells`        | `false`     | Cells become keyboard-accessible copy buttons, keeping the same text and spacing.                                                 |
+| `animations`       | `true`      | Brief control/disclosure motion. `true` enables it and `false` disables it, overriding the system motion preference.              |
 | `toolbar`          | `true`      | Show the viewer header; secondary tools are configured separately.                                                                |
 | `credits`          | `true`      | Show attribution in the header.                                                                                                   |
 | `statusBar`        | `true`      | Show counts and metadata. Loading, errors, and empty results remain visible.                                                      |
@@ -108,6 +109,8 @@ Use `toolbar: false` to hide the header, or disable `credits`, `themeToggle`, `f
 Controls use monospace by default; override `--by-view-controls-font` to change it.
 
 ## Themes
+
+Initial content appears immediately. Animations affect controls and deliberate show/hide actions; rows, tokens, and typing are not animated. Disclosure size/exit transitions progressively enhance browsers that support them.
 
 The outer document and inner surfaces have independent CSS backgrounds. Both follow the selected theme unless overridden. Set `--by-view-document-bg: #0000` to reveal the host page while keeping content panels and individual controls readable. `--by-view-container-bg` sets the shared background of those panels and controls; it also accepts alpha colors or `transparent`. The toolbar and credits have no background. These overrides survive theme changes.
 
