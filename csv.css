@@ -288,6 +288,16 @@
   border-radius: var(--by-view-radius, 0.65em);
   background: var(--by-view-container-bg, var(--by-view-bg));
 }
+.byCSVdocument.byVIEWplain .byVIEWpanel {
+  border: 0;
+  border-radius: 0;
+}
+.byCSVdocument.byVIEWplain .byVIEWstatus {
+  display: none;
+}
+.byCSVdocument.byVIEWplain .byVIEWpanel > :not(.byVIEWstatus) {
+  padding-inline: 0;
+}
 .byCSVdocument .byVIEWpanel > .byVIEWstatus {
   margin: 0;
   padding: 0.375em 0.625em;

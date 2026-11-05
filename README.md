@@ -57,7 +57,8 @@ Use `{ delimiter: "\t" }` for TSV, or pass `[{ name: "Andres", score: 10 }]`. Wi
 | `animations`       | `true`      | Brief control/disclosure motion. `true` enables it and `false` disables it, overriding the system motion preference.                                       |
 | `toolbar`          | `true`      | Show the viewer header; secondary tools are configured separately.                                                                                         |
 | `credits`          | `true`      | Show attribution in the header.                                                                                                                            |
-| `statusBar`        | `true`      | Show counts and metadata. Loading, errors, and empty results remain visible.                                                                               |
+| `displayContainer` | `true`      | Show the content panel frame and inner horizontal padding. `false` also hides status information.                                                          |
+| `statusBar`        | `true`      | Show counts and metadata when `displayContainer` is true. With `statusBar: false`, loading and empty results remain visible; errors always remain visible. |
 | `columnsButton`    | `false`     | Show the column chooser.                                                                                                                                   |
 | `sorting`          | `true`      | Cycle ascending, descending, then input order; arrows show its direction.                                                                                  |
 | `pagination`       | `true`      | Paginate large tables. The pager appears only with multiple pages; false shows every row.                                                                  |
