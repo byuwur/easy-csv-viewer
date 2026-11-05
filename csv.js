@@ -11,7 +11,7 @@
   if (global.byCSVviewer?.initialized) return;
 
   /* --- METADATA --- */
-  byCSVviewer.VERSION = "1.3"; // 2026-11-05
+  byCSVviewer.VERSION = "1.4"; // 2026-11-05
 
   /* --- STATE --- */
   const instances = new WeakMap();
