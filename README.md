@@ -193,10 +193,11 @@ Install Playwright outside the repository and set `NODE_PATH` to its `node_modul
 
 ```sh
 node --check csv.js
-node --test tests/rendering.cjs
+node --test tests/rendering.cjs   # Library
+node --test tests/playground.cjs  # Playground
 ```
 
-`BROWSER_CHANNEL=chrome` uses installed Chrome; `CHROMIUM_EXECUTABLE_PATH` selects a Chromium executable. Otherwise, install Playwright Chromium. [GitHub Actions](.github/workflows/rendering.yml) runs the same suite.
+`BROWSER_CHANNEL=chrome` uses installed Chrome; `CHROMIUM_EXECUTABLE_PATH` selects a Chromium executable. Otherwise, install Playwright Chromium. [GitHub Actions](.github/workflows/rendering.yml) reports Library and Playground as independent jobs; a failed suite does not cancel the other.
 
 ## The easy viewers
 
