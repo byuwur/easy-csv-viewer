@@ -44,32 +44,32 @@ Use `{ delimiter: "\t" }` for TSV, or pass `[{ name: "Andres", score: 10 }]`. Wi
 
 ## Options
 
-| Option             | Default     | Behavior                                                                                                                          |
-| ------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `delimiter`        | `","`       | One character, excluding quote, BOM, CR, and LF. No autodetection.                                                                |
-| `headers`          | `true`      | First text/array row supplies names. False generates `Column 1`, etc. Record input always uses its union of own keys.             |
-| `skipEmptyLines`   | `true`      | Skip physically empty lines. Quoted empty cells and delimiter-only rows remain.                                                   |
-| `pageSize`         | `50`        | Rows per page, integer 1–1000; invalid values use 50.                                                                             |
-| `search`           | `false`     | Global case-insensitive substring search, including hidden columns.                                                               |
-| `columnFilters`    | `false`     | Per-column substring filters; combined with search using AND. Hidden filters remain active.                                       |
-| `visibleColumns`   | all         | Array of zero-based indices or column names. Duplicate names match every column with that name; an empty array hides all columns. |
-| `copyCells`        | `false`     | Cells become keyboard-accessible copy buttons, keeping the same text and spacing.                                                 |
-| `animations`       | `true`      | Brief control/disclosure motion. `true` enables it and `false` disables it, overriding the system motion preference.              |
-| `toolbar`          | `true`      | Show the viewer header; secondary tools are configured separately.                                                                |
-| `credits`          | `true`      | Show attribution in the header.                                                                                                   |
-| `statusBar`        | `true`      | Show counts and metadata. Loading, errors, and empty results remain visible.                                                      |
-| `columnsButton`    | `false`     | Show the column chooser.                                                                                                          |
-| `sorting`          | `true`      | Cycle ascending, descending, then input order; arrows show its direction.                                                         |
-| `pagination`       | `true`      | Paginate large tables. The pager appears only with multiple pages; false shows every row.                                         |
-| `theme`            | Container   | Initial `"light"` or `"dark"` mode class.                                                                                         |
-| `palette`          | Container   | Initial `data-theme` palette, including custom CSS names.                                                                         |
-| `fontSize`         | Container   | Number in rem or a CSS size such as `"1.25em"` or `"20px"`; bounded to `0.5rem`–`3rem`.                                           |
-| `themeToggle`      | `true`      | Show the theme toggle.                                                                                                            |
-| `fontSizeControls` | `true`      | Show text-size controls.                                                                                                          |
-| `copyButton`       | `true`      | Copy original text, or CSV serialized from record/row input, including hidden/filtered rows.                                      |
-| `controlsSize`     | `"regular"` | `"small"`, `"regular"`, or `"large"`; invalid values use `"regular"`.                                                             |
-| `controlsCompact`  | `true`      | Keep credits beside controls; `false` stacks them. Wraps as needed.                                                               |
-| `controlsPosition` | `"top"`     | Sticky `"top"` or `"bottom"` toolbar; invalid values use `"top"`.                                                                 |
+| Option             | Default     | Behavior                                                                                                                                                   |
+| ------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `delimiter`        | `","`       | One character, excluding quote, BOM, CR, and LF. No autodetection.                                                                                         |
+| `headers`          | `true`      | First text/array row supplies names. False generates `Column 1`, etc. Record input always uses its union of own keys.                                      |
+| `skipEmptyLines`   | `true`      | Skip physically empty lines. Quoted empty cells and delimiter-only rows remain.                                                                            |
+| `pageSize`         | `50`        | Rows per page, integer 1–1000; invalid values use 50.                                                                                                      |
+| `search`           | `false`     | Global case-insensitive substring search, including hidden columns.                                                                                        |
+| `columnFilters`    | `false`     | Per-column substring filters; combined with search using AND. Hidden filters remain active.                                                                |
+| `visibleColumns`   | all         | Array of zero-based indices or column names. Duplicate names match every column with that name; an empty array hides all columns.                          |
+| `copyCells`        | `false`     | Cells become keyboard-accessible copy buttons, keeping the same text and spacing.                                                                          |
+| `animations`       | `true`      | Brief control/disclosure motion. `true` enables it and `false` disables it, overriding the system motion preference.                                       |
+| `toolbar`          | `true`      | Show the viewer header; secondary tools are configured separately.                                                                                         |
+| `credits`          | `true`      | Show attribution in the header.                                                                                                                            |
+| `statusBar`        | `true`      | Show counts and metadata. Loading, errors, and empty results remain visible.                                                                               |
+| `columnsButton`    | `false`     | Show the column chooser.                                                                                                                                   |
+| `sorting`          | `true`      | Cycle ascending, descending, then input order; arrows show its direction.                                                                                  |
+| `pagination`       | `true`      | Paginate large tables. The pager appears only with multiple pages; false shows every row.                                                                  |
+| `theme`            | Container   | Initial `"light"` or `"dark"` mode class.                                                                                                                  |
+| `palette`          | Container   | Initial `data-theme` palette, including custom CSS names.                                                                                                  |
+| `fontSize`         | Container   | Number in rem or a CSS size such as `"1.25em"` or `"20px"`; bounded to `0.5rem`–`3rem`.                                                                    |
+| `themeToggle`      | `true`      | Show the theme toggle.                                                                                                                                     |
+| `fontSizeControls` | `true`      | Show text-size controls.                                                                                                                                   |
+| `copyButton`       | `true`      | Copy original text, or CSV serialized from record/row input, including hidden/filtered rows.                                                               |
+| `controlsSize`     | `"regular"` | `"xs"` (0.5rem), `"small"` (0.7rem), `"regular"` (0.875rem), `"large"` (1rem), or `"xl"` (1.25rem); invalid values use `"regular"`.                        |
+| `controlsCompact`  | `true`      | Keep credits beside controls; `false` stacks them. Wraps as needed.                                                                                        |
+| `controlsPosition` | `"top"`     | Sticky `"top"` or `"bottom"` toolbar; invalid values use `"top"`.                                                                                          |
 
 ## API and data contract
 
