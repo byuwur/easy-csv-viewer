@@ -426,14 +426,7 @@
                   spellcheck="false"
                   autocapitalize="off"
                   autocomplete="off"
-                  title="Ctrl / ⌘ + Enter to render. Tab moves focus.">
-Name,Role,Location,Notes
-Andres,Developer,Bogota,"Build small, useful things."
-Sam,Designer,London,"Quotes: ""hello"""
-Lee,Engineer,Tokyo,"A note that spans
-two lines."
-Alex,Maintainer,Oslo,Ready</textarea
-                >
+                  title="Ctrl / ⌘ + Enter to render. Tab moves focus."></textarea>
               </div>
               <div id="source-status" class="panel-footer text-break border-top px-4 py-2 small font-monospace text-body-secondary" role="status">Edit to render</div>
             </section>
@@ -924,6 +917,14 @@ Alex,Maintainer,Oslo,Ready</textarea
         const themeInputs = [...document.querySelectorAll('[name="previewTheme"]')];
         const error = document.getElementById("source-error");
         const status = document.getElementById("render-status");
+        // prettier-ignore
+        const samples = {
+          default: {"name": "Default showcase", "source": "Name,Role,Location,Notes\nAndres,Developer,Bogota,\"Build small, useful things.\"\nSam,Designer,London,\"Quotes: \"\"hello\"\"\"\nLee,Engineer,Tokyo,\"A note that spans\ntwo lines.\"\nAlex,Maintainer,Oslo,Ready"},
+          quoted: {"name": "Quoted fields", "source": "Name,Note\nAndres,\"Hello, world\"\nSam,\"Two\nlines\""},
+          tsv: {"name": "TSV", "source": "Name\tScore\nAndres\t10\nSam\t8", "options": {"delimiter": "\t"}},
+          empty: {"name": "Empty values", "source": "Name,Value\nEmpty,\"\"\nZero,0\nText,false"},
+        };
+        source.value = samples.default.source;
         const initialSource = source.value;
         const initialSecond = second?.value;
         const defaults = {
@@ -1260,14 +1261,10 @@ Alex,Maintainer,Oslo,Ready</textarea
         document.getElementById("year-txt").textContent = new Date().getFullYear();
 
         // --- EXAMPLES ---
-        const examples = {
-          quoted: { label: "Quoted fields", source: 'Name,Note\nAndres,"Hello, world"\nSam,"Two\nlines"' },
-          tsv: { label: "TSV", source: "Name\tScore\nAndres\t10\nSam\t8", options: { delimiter: "\t" } },
-          empty: { label: "Empty values", source: 'Name,Value\nEmpty,""\nZero,0\nText,false' }
-        };
+
         document.querySelectorAll("[data-example]").forEach((button) =>
           button.addEventListener("click", () => {
-            const example = examples[button.dataset.example];
+            const example = samples[button.dataset.example];
             ++sourceVersion;
             source.value = example.source;
             if (second) second.value = example.second;
