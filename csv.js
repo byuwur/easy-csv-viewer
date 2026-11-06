@@ -7,15 +7,15 @@
  * MIT License (see LICENSE).
  */
 (function (global) {
-  /* --- INITIALIZATION --- */
+  // --- INITIALIZATION ---
   if (global.byCSVviewer?.initialized) return;
 
-  /* --- METADATA --- */
+  // --- METADATA ---
   byCSVviewer.VERSION = "1.4"; // 2026-11-05
 
-  /* --- STATE --- */
+  // --- STATE ---
   const instances = new WeakMap();
-  /* --- HELPERS --- */
+  // --- HELPERS ---
   const node = (tag, className = "", text) => {
     const element = document.createElement(tag);
     element.className = className;
@@ -59,10 +59,10 @@
     control.addEventListener("focusout", reset);
     return control;
   };
-  /** Yield at a chunk boundary so input events and replacement renders can run. */
+  // Yield at a chunk boundary so input events and replacement renders can run.
   const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
   const positive = (value, fallback, maximum) => (Number.isInteger(value) && value > 0 ? Math.min(value, maximum) : fallback);
-  /* --- APPEARANCE --- */
+  // --- APPEARANCE ---
   const extraPalettes = new Set([
     "dracula",
     "darcula",
@@ -118,7 +118,7 @@
     console.warn(`easy-csv-viewer: Palette "${palette}" requires csv.themes.css. Import it after csv.css. https://byuwur.github.io/easy-csv-viewer/`);
   };
 
-  /** Explicit appearance options override markup; omitted values preserve the container's state. */
+  // Explicit appearance options override markup; omitted values preserve the container's state.
   const applyAppearance = (element, options) => {
     const { theme, palette, fontSize } = options;
     if (theme != null && !["light", "dark"].includes(theme)) throw new RangeError("Theme must be light or dark.");
@@ -139,7 +139,7 @@
     }
   };
 
-  /* --- CONTROLS --- */
+  // --- CONTROLS ---
   // Mirrored across the family so each viewer can run without a shared runtime.
   /**
    * Adds container light/dark controls, retaining legacy stylesheet links as a fallback.
@@ -299,7 +299,7 @@
     });
   };
 
-  /* --- PARSING --- */
+  // --- PARSING ---
   const csvOptions = (options) => {
     const result = { delimiter: ",", headers: true, skipEmptyLines: true, pageSize: 50, search: false, columnFilters: false, copyCells: false, ...options };
     if (typeof result.delimiter !== "string" || result.delimiter.length !== 1 || /["\r\n\uFEFF]/.test(result.delimiter)) throw new TypeError("delimiter must be one character other than a quote or line break.");
@@ -310,7 +310,7 @@
   const scalar = (value) => value === null || value === undefined || ["string", "number", "boolean", "bigint"].includes(typeof value);
 
   // One parser serves synchronous parsing and cooperative browser rendering.
-  /** Yield cooperative parsing checkpoints and return columns/rows when done; quoted fields may span lines. */
+  // Yield cooperative parsing checkpoints and return columns/rows when done; quoted fields may span lines.
   function* readCSV(input, options) {
     let columns = [],
       rows = [];
@@ -409,9 +409,9 @@
     return { columns, rows };
   }
 
-  /* --- LIFECYCLE --- */
+  // --- LIFECYCLE ---
   // One instance owns the container; replacement disposes its pending work first.
-  /** Replace the previous owner and return its cancellable state. Only the current owner may clear the host. */
+  // Replace the previous owner and return its cancellable state. Only the current owner may clear the host.
   const mount = (element, options, getText) => {
     if (!(element instanceof HTMLElement)) throw new TypeError("byCSVviewer: element must be an HTMLElement.");
     applyAppearance(element, options);
@@ -484,8 +484,8 @@
     return state;
   };
 
-  /* --- PUBLIC API --- */
-  /** Render CSV/TSV text or scalar records. ready resolves false on a displayed data error or cancellation. */
+  // --- PUBLIC API ---
+  // Render CSV/TSV text or scalar records. ready resolves false on a displayed data error or cancellation.
   function byCSVviewer(element, input, options = {}) {
     options = csvOptions(options);
     if (input === undefined) input = element?.textContent ?? "";
@@ -560,8 +560,8 @@
           renderPage();
         });
         const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-        /* --- RENDERING --- */
-        /** Replace the visible page; retaining the header preserves native column-filter focus while typing. */
+        // --- RENDERING ---
+        // Replace the visible page; retaining the header preserves native column-filter focus while typing.
         const renderPage = (rebuildHeader = true) => {
           if (!state.active) return;
           const count = options.pagination === false ? 1 : Math.max(1, Math.ceil(indices.length / options.pageSize));
@@ -630,7 +630,7 @@
           next.disabled = page + 1 >= count;
           element.setAttribute("aria-busy", "false");
         };
-        /** Build a filtered/sorted index without changing source rows; superseded passes cannot publish results. */
+        // Build a filtered/sorted index without changing source rows; superseded passes cannot publish results.
         const update = async (rebuildHeader = true) => {
           // Filter/sort row indices instead of mutating the parsed data or its input order.
           // A newer query must supersede this pass before it publishes its results.
@@ -674,7 +674,7 @@
     } while (!step.done);
     return step.value;
   };
-  /* --- EXPORT --- */
+  // --- EXPORT ---
   global.byCSVviewer = byCSVviewer;
   byCSVviewer.initialized = true;
 })(typeof window !== "undefined" ? window : this);
