@@ -126,6 +126,7 @@
     warnMissingThemes(element, palette ?? element.dataset.theme);
     const size = typeof fontSize === "number" ? `${Math.max(0.5, Math.min(3, fontSize))}rem` : typeof fontSize === "string" ? `clamp(0.5rem, ${fontSize}, 3rem)` : "";
     if (fontSize != null && (typeof fontSize === "number" ? !Number.isFinite(fontSize) : typeof fontSize !== "string" || !CSS.supports("font-size", size))) throw new RangeError("Font size must be a finite multiplier or a CSS size.");
+    // Keep palette identity in data-theme while light/dark classes select its mode.
     if (theme != null || palette != null) {
       const mode = theme ?? (["light", "dark"].includes(element.dataset.theme) ? element.dataset.theme : element.classList.contains("dark") ? "dark" : "light");
       element.classList.toggle("light", mode === "light");
@@ -209,6 +210,7 @@
    * @return {HTMLElement} The text size button group.
    */
   const appendFontSizeControls = (element, controls) => {
+    // Remember the caller's initial size so Reset also works after this toolbar is recreated.
     element.dataset.byViewDefaultFontSize ??= element.style.fontSize;
     const sizes = document.createElement("div");
     sizes.className = "byVIEWfontSizes";
@@ -334,6 +336,7 @@
           if (i % 1000 === 0) yield;
         }
       } else {
+        // Union record keys before reading values so later records can introduce columns without shifting earlier rows.
         const keys = new Set();
         for (let i = 0; i < input.length; i++) {
           const record = input[i];
@@ -344,6 +347,7 @@
         }
         columns = [...keys];
         for (let i = 0; i < input.length; i++) {
+          // Read only own properties; missing fields stay empty instead of inheriting prototype values.
           const row = columns.map((key) => (Object.hasOwn(input[i], key) ? input[i][key] : undefined));
           if (!row.every(scalar)) throw new TypeError("Record values must be scalar (string, number, boolean, bigint, null, or undefined).");
           rows.push(row);
@@ -372,6 +376,7 @@
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       if (quoted) {
+        // A doubled quote is data inside a quoted field; delimiters and line breaks remain data here too.
         if (char === '"') {
           if (text[i + 1] === '"') {
             field += '"';
@@ -399,6 +404,7 @@
         field += char;
         touched = true;
       }
+      // Character checkpoints also keep a single very long quoted field from monopolizing the event loop.
       if (i >= nextYield) {
         nextYield = i + 32768;
         yield;
@@ -414,6 +420,7 @@
   // Replace the previous owner and return its cancellable state. Only the current owner may clear the host.
   const mount = (element, options, getText) => {
     if (!(element instanceof HTMLElement)) throw new TypeError("byCSVviewer: element must be an HTMLElement.");
+    // Validate appearance before disposing the current instance, so invalid options leave it usable.
     applyAppearance(element, options);
     const painted = element.classList.contains("byVIEWready");
     instances.get(element)?.destroy();
@@ -422,6 +429,7 @@
       if (!state.active) return;
       state.active = false;
       cancelAnimationFrame(state.motionFrame);
+      // An old controller must not clear a replacement mounted on the same element.
       if (instances.get(element) === state) {
         instances.delete(element);
         element.replaceChildren();
@@ -565,6 +573,7 @@
         const renderPage = (rebuildHeader = true) => {
           if (!state.active) return;
           const count = options.pagination === false ? 1 : Math.max(1, Math.ceil(indices.length / options.pageSize));
+          // Capture the sorting control before rebuilding the header so keyboard focus survives the update.
           const focusedColumn = table.contains(document.activeElement) ? (document.activeElement.dataset.column ?? null) : null;
           page = Math.max(0, Math.min(page, count - 1));
           const head = node("thead"),
@@ -646,6 +655,7 @@
               if (!state.active || version !== generation) return;
             }
           }
+          // Use source position as the tie-breaker so equal cells retain their original order.
           if (sortColumn >= 0) found.sort((a, b) => direction * collator.compare(cellText(data.rows[a][sortColumn]), cellText(data.rows[b][sortColumn])) || a - b);
           if (!state.active || version !== generation) return;
           indices = found;
