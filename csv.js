@@ -115,7 +115,8 @@
     const document = element.ownerDocument;
     if (document.defaultView.getComputedStyle(document.documentElement).getPropertyValue("--by-csv-themes-loaded").trim() === "1") return;
     warnedPalettes.add(palette);
-    console.warn(`easy-csv-viewer: Palette "${palette}" requires csv.themes.css. Import it after csv.css. https://byuwur.github.io/easy-csv-viewer/`);
+    // console.warn(`easy-csv-viewer: Palette "${palette}" requires csv.themes.css. Import it after csv.css. https://byuwur.github.io/easy-csv-viewer/`);
+    console.warn(`easy-csv-viewer: Palette "${palette}" requires csv.themes.css. Import it after csv.css. https://csv.byuwur.co/`);
   };
 
   // Explicit appearance options override markup; omitted values preserve the container's state.
