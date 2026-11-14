@@ -44,7 +44,7 @@ test("CSV parsing and standalone browser behavior", async (t) => {
       if (!filename || filename === "fixture.html")
         return route.fulfill({
           contentType: "text/html",
-          body: '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="csv.css"><script src="csv.js"></script><div id="viewer" data-theme="light"></div>'
+          body: '<!doctype html><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="csv.css"><script src="csv.js"></script><div id="viewer" data-theme="light"></div>'
         });
       return route.fulfill({ path: path.join(__dirname, "..", filename), contentType: filename.endsWith(".css") ? "text/css" : "text/javascript" });
     });
@@ -1129,7 +1129,7 @@ test("local assets render with a strict CSP and touch controls at mobile width",
       return route.fulfill({
         contentType: "text/html",
         headers: { "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'none'; img-src 'self'" },
-        body: '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="library.css"><div id="viewer"></div><script src="library.js"></script><script src="init.js"></script>'
+        body: '<!doctype html><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="library.css"><div id="viewer"></div><script src="library.js"></script><script src="init.js"></script>'
       });
     });
     await page.goto("https://viewer.test/");

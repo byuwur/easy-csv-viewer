@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en" data-bs-theme="dark">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>easy-csv-viewer | CSV &amp; TSV, every cell in sight.</title>
     <meta name="description" content="Browse CSV and TSV tables with search, column filters, sorting, and pagination. A free, dependency-free JavaScript table viewer by BONYUR." />
@@ -1137,7 +1137,7 @@
             "<!doctype html>",
             '<html lang="en">',
             "  <head>",
-            '    <meta charset="utf-8">',
+            '    <meta charset="UTF-8">',
             '    <meta name="viewport" content="width=device-width, initial-scale=1">',
             "    <title>easy-csv-viewer</title>",
             `    <link rel="stylesheet" href="${base}csv${min}.css">`,
@@ -1195,7 +1195,7 @@
 
         document.getElementById("copy-html").addEventListener("click", (event) => copyText(integrationHTML, integrationCode, event.currentTarget));
         document.getElementById("download-html").addEventListener("click", () => {
-          const url = URL.createObjectURL(new Blob([integrationHTML], { type: "text/html;charset=utf-8" }));
+          const url = URL.createObjectURL(new Blob([integrationHTML], { type: "text/html;charset=UTF-8" }));
           const link = document.createElement("a");
           link.href = url;
           link.download = "easy-csv-viewer.html";
